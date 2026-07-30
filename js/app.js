@@ -1512,7 +1512,7 @@ function exportData() {
   toast('已导出备份（含自定义布局）');
 }
 
-/* 文件导入 */
+/* 文件导入（智能合并模式） */
 $('#importInput').onchange = function (e) {
   var f = e.target.files[0]; if (!f) return;
   var r = new FileReader();
@@ -1520,12 +1520,34 @@ $('#importInput').onchange = function (e) {
     try {
       var obj = JSON.parse(r.result);
       if (obj && obj.v === 2 && obj.data) {
-        Store._cache = obj.data; Store.save();
+        var cur = Store.load();
+        var imp = obj.data;
+        var merged = 0, skipped = 0;
+        for (var key in imp) {
+          if (cur[key] === undefined) {
+            cur[key] = imp[key]; merged++;
+          } else if (Array.isArray(cur[key]) && Array.isArray(imp[key])) {
+            var existingIds = {};
+            cur[key].forEach(function(item) { if (item.id) existingIds[item.id] = true; });
+            imp[key].forEach(function(item) {
+              if (item.id && !existingIds[item.id]) {
+                cur[key].push(item);
+                existingIds[item.id] = true;
+                merged++;
+              } else { skipped++; }
+            });
+          } else {
+            cur[key] = imp[key]; merged++;
+          }
+        }
+        Store._cache = cur; Store.save();
         localStorage.setItem(Layout.KEY, JSON.stringify(obj.layout || Layout.defaultCfg()));
+        toast('导入合并完成 ✓ 新增 ' + merged + ' 项 · 跳过 ' + skipped + ' 条重复');
       } else {
         Store._cache = obj; Store.save();
+        toast('导入成功');
       }
-      toast('导入成功'); location.reload();
+      location.reload();
     } catch (err) { toast('文件格式有误'); }
   };
   r.readAsText(f);
