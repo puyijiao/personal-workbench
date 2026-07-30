@@ -3,24 +3,25 @@
 /* 加载顺序：storage.js → layout.js → app.js → ocr.js */
 /* Tesseract.js 仅在用户点击"拍照识别"时才从 CDN 懒加载 */
 /* v2: 多CDN容错 + 显式路径 + 全局超时降级，解决加载卡死0% */
+/* v3: 改用国内友好的 jsdelivr CDN + 加长超时 + 简化路径 */
 
 var OCR = {
   _loading: null,   /* 懒加载回调队列 */
 
   /* 全局超时（毫秒）—— OCR 下载/识别超时后自动降级为手动填写 */
-  TIMEOUT_MS: 30000,
+  TIMEOUT_MS: 90000,
 
   /* 主脚本 CDN 源 —— 按优先级依次尝试，任一成功即可 */
   SCRIPT_CDNS: [
-    'https://unpkg.com/tesseract.js@5.0.5/dist/tesseract.min.js',
     'https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js',
+    'https://unpkg.com/tesseract.js@5.0.5/dist/tesseract.min.js',
     'https://cdn.bootcdn.net/ajax/libs/tesseract.js/5.0.5/tesseract.min.js'
   ],
 
-  /* Worker 脚本 / WASM 核心 / 语言数据路径 —— 显式指定，不依赖库内置默认值 */
-  WORKER_PATH: 'https://unpkg.com/tesseract.js@5.0.5/dist/worker.min.js',
-  CORE_PATH:   'https://unpkg.com/tesseract.js-core@5.0.0',
-  LANG_PATH:   'https://tessdata.projectnaptha.com/4.0.0',
+  /* Worker 脚本 / WASM 核心 / 语言数据路径 —— 全部用 jsdelivr 国内访问快 */
+  WORKER_PATH: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/worker.min.js',
+  CORE_PATH:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0',
+  LANG_PATH:   'https://cdn.jsdelivr.net/npm/@tessdata/chi_sim',
 
   /* 懒加载 Tesseract.js 主脚本（多 CDN 自动容错 + 单源超时） */
   loadScript: function (cb) {
@@ -86,7 +87,7 @@ var OCR = {
         return;
       }
       try {
-        Tesseract.createWorker('chi_sim+eng', 1, {
+        Tesseract.createWorker('chi_sim', 1, {
           workerPath: self.WORKER_PATH,
           corePath:   self.CORE_PATH,
           langPath:   self.LANG_PATH,
