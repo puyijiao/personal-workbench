@@ -2,20 +2,21 @@
   "name": "桃子工作台",
   "short_name": "工作台",
   "description": "管理设计、饮食、学习与健康，一站式个人工作台",
-  "start_url": "/personal-workbench/",
+  "start_url": "https://puyijiao.github.io/personal-workbench/?source=pwa",
+  "scope": "https://puyijiao.github.io/personal-workbench/",
   "display": "standalone",
   "background_color": "#eef1f6",
   "theme_color": "#6366f1",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "https://puyijiao.github.io/personal-workbench/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "https://puyijiao.github.io/personal-workbench/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
