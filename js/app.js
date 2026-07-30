@@ -559,23 +559,30 @@ var Diet = {
     var g = Store.get('dietGoals', { cal: 1150, protein: 60, fat: 35, carb: 145, fiber: 25 });
     var pct = g.cal > 0 ? Math.min(cal / g.cal * 100, 100) : 0;
     var over = cal > g.cal;
-    var left = Math.max(g.cal - cal, 0);
+    var left = Math.round((g.cal - cal) * 100) / 100;
+    if (left < 0) left = 0;
+    var calShow = Math.round(cal * 100) / 100;
+    var overAmt = Math.round((cal - g.cal) * 100) / 100;
+    var proteinShow = Math.round(protein * 100) / 100;
+    var fatShow = Math.round(fat * 100) / 100;
+    var carbShow = Math.round(carb * 100) / 100;
+    var fiberShow = Math.round(fiber * 100) / 100;
     $('#dietSummary').innerHTML =
       '<div class="cal-ring-wrap">' +
         '<div class="cal-ring' + (over ? ' over' : '') + '" style="--pct:' + pct + '">' +
-          '<div class="cal-ring-center"><div class="crc-num">' + pct.toFixed(0) + '%</div><div class="crc-unit">' + cal + '/' + g.cal + 'kcal</div></div>' +
+          '<div class="cal-ring-center"><div class="crc-num">' + pct.toFixed(0) + '%</div><div class="crc-unit">' + calShow + '/' + g.cal + 'kcal</div></div>' +
         '</div>' +
         '<div class="cal-ring-info">' +
-          '<div class="cri-row"><span>已摄入</span><b style="color:var(--c-diet)">' + cal + ' kcal</b></div>' +
-          '<div class="cri-row"><span>' + (over ? '超出' : '剩余') + '</span><b style="color:' + (over ? '#ef4444' : 'var(--ink)') + '">' + (over ? cal - g.cal : left) + ' kcal</b></div>' +
+          '<div class="cri-row"><span>已摄入</span><b style="color:var(--c-diet)">' + calShow + ' kcal</b></div>' +
+          '<div class="cri-row"><span>' + (over ? '超出' : '剩余') + '</span><b style="color:' + (over ? '#ef4444' : 'var(--ink)') + '">' + (over ? overAmt : left) + ' kcal</b></div>' +
           '<div class="cri-hint">' + (over ? '已超过今日目标，注意控制哦' : '保持良好，继续加油') + '</div>' +
           '<button class="goal-edit-btn" data-action="edit-diet-goal" style="margin-top:10px">⚙ 修改每日目标</button>' +
         '</div>' +
       '</div>' +
-      '<div class="sum-card"><div class="sc-num">' + protein.toFixed(0) + '<small>/' + g.protein + 'g</small></div><div class="sc-label">蛋白质</div></div>' +
-      '<div class="sum-card"><div class="sc-num">' + fat.toFixed(0) + '<small>/' + g.fat + 'g</small></div><div class="sc-label">脂肪</div></div>' +
-      '<div class="sum-card"><div class="sc-num">' + carb.toFixed(0) + '<small>/' + g.carb + 'g</small></div><div class="sc-label">碳水</div></div>' +
-      '<div class="sum-card"><div class="sc-num">' + fiber.toFixed(0) + '<small>/' + g.fiber + 'g</small></div><div class="sc-label">膳食纤维</div></div>';
+      '<div class="sum-card"><div class="sc-num">' + proteinShow + '<small>/' + g.protein + 'g</small></div><div class="sc-label">蛋白质</div></div>' +
+      '<div class="sum-card"><div class="sc-num">' + fatShow + '<small>/' + g.fat + 'g</small></div><div class="sc-label">脂肪</div></div>' +
+      '<div class="sum-card"><div class="sc-num">' + carbShow + '<small>/' + g.carb + 'g</small></div><div class="sc-label">碳水</div></div>' +
+      '<div class="sum-card"><div class="sc-num">' + fiberShow + '<small>/' + g.fiber + 'g</small></div><div class="sc-label">膳食纤维</div></div>';
   },
   renderMeals: function () {
     var t = today();
@@ -668,7 +675,7 @@ var Diet = {
       '</select></div><div class="field"><label>日期</label><input type="date" id="fd-date" value="' + today() + '" /></div></div>' +
       '<div id="mode-lib"><div class="field"><label>搜索食物</label><div class="food-search-box"><input id="fd-search" placeholder="输入食物名，如：鸡蛋、米饭" autocomplete="off" /><div class="food-suggest" id="fd-suggest"></div></div></div>' +
       '<div class="field"><label>食用量 (克)</label><input type="number" id="fd-amount" value="100" min="1" /><div class="hint">输入实际食用克数，系统按比例换算营养素</div></div></div>' +
-      '<div id="mode-photo" style="display:none"><div class="field"><label>上传营养成分表照片</label><input type="file" id="fd-img" accept="image/*" capture="environment" /><button class="btn sm" id="fd-ocr-btn" style="margin-top:8px;width:100%">🤖 智能识别营养数据</button><div class="img-preview" id="fd-preview"><img id="fd-imgel" /></div>' +
+      '<div id="mode-photo" style="display:none"><div class="field"><label>上传营养成分表照片</label><input type="file" id="fd-img" accept="image/*" /><button class="btn sm" id="fd-ocr-btn" style="margin-top:8px;width:100%">🤖 智能识别营养数据</button><div class="img-preview" id="fd-preview"><img id="fd-imgel" /></div>' +
       '<div class="ocr-status" id="fd-ocr-status"></div>' +
       '<div class="hint">拍摄包装背面营养成分表，点击"智能识别"自动填入数据</div></div>' +
       '<div class="field"><label>食物名称</label><input id="fd-pname" placeholder="如：某品牌全麦面包" /></div>' +
@@ -830,7 +837,7 @@ var Diet = {
     openModal(title,
       '<div class="ocr-section">' +
         '<label style="font-weight:600;display:block;margin-bottom:8px">📷 拍照识别营养成分表</label>' +
-        '<input type="file" id="fl-ocr-img" accept="image/*" capture="environment" hidden />' +
+        '<input type="file" id="fl-ocr-img" accept="image/*" hidden />' +
         '<button class="btn" id="fl-ocr-btn" style="width:100%">📷 拍照/上传识别</button>' +
         '<div class="img-preview" id="fl-ocr-preview" style="margin-top:8px"><img id="fl-ocr-imgel" /></div>' +
         '<div class="ocr-status" id="fl-ocr-status"></div>' +
@@ -1054,7 +1061,7 @@ var Body = {
     openModal('录入体测数据',
       '<div class="ocr-section">' +
         '<label style="font-weight:600;display:block;margin-bottom:8px">📷 拍照识别体脂秤数据</label>' +
-        '<input type="file" id="bd-ocr-img" accept="image/*" capture="environment" hidden />' +
+        '<input type="file" id="bd-ocr-img" accept="image/*" hidden />' +
         '<button class="btn" id="bd-ocr-btn" style="width:100%">📷 拍照/上传识别</button>' +
         '<div class="img-preview" id="bd-ocr-preview" style="margin-top:8px"><img id="bd-ocr-imgel" /></div>' +
         '<div class="ocr-status" id="bd-ocr-status"></div>' +
