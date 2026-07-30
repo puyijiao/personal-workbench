@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>我的个人工作台</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- 侧边导航（由 Layout 动态渲染，支持右键菜单 / 拖拽排序） -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">工</div>
+        <div class="brand-text">
+          <div class="brand-title"><span id="brandTitleText">个人工作台</span><button class="brand-edit" data-action="rename-workbench" title="修改名称">✎</button></div>
+          <div class="brand-sub" id="todayLabel">—</div>
+        </div>
+      </div>
+      <nav class="nav" id="navList" data-sortable="sidebar"></nav>
+      <div class="sidebar-foot">
+        <button class="btn-ghost" id="exportBtn" data-action="export-data">⬇ 导出数据</button>
+        <button class="btn-ghost" id="importBtn" data-action="import-data">⬆ 导入数据</button>
+        <input type="file" id="importInput" accept="application/json" hidden />
+      </div>
+    </aside>
+
+    <!-- 主内容 -->
+    <main class="main">
+      <!-- 仪表盘 -->
+      <section class="page active" id="page-dashboard" data-page="dashboard">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">今日总览</h1>
+            <p class="page-desc">一站式掌握你的工作、饮食、学习与运动进度 · 右键侧边栏、拖拽卡片均可自由编排</p>
+          </div>
+        </div>
+        <div class="page-cards" data-sortable data-page="dashboard">
+          <div class="card" data-card="dashCard">
+            <div class="card-head"><h3 class="card-title">今日总览</h3><div class="card-actions"></div></div>
+            <div class="card-content"><div class="dash-grid" id="dashGrid"></div></div>
+          </div>
+          <div class="add-card-bar"><button class="add-card-btn" data-action="add-card" data-page="dashboard">＋ 新增空白卡片</button></div>
+        </div>
+      </section>
+
+      <!-- 本职工作 -->
+      <section class="page" id="page-work" data-page="work">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">本职工作 · 服装设计</h1>
+            <p class="page-desc">管理设计项目、任务进度与灵感笔记</p>
+          </div>
+        </div>
+        <div class="page-cards" data-sortable data-page="work">
+          <div class="card" data-card="workRingCard">
+            <div class="card-head"><h3 class="card-title">设计稿进度</h3><div class="card-actions"><button class="btn sm" data-action="add-design">＋ 登记设计稿</button></div></div>
+            <div class="card-content"><div id="workRing"></div></div>
+          </div>
+          <div class="card" data-card="workStyleCard">
+            <div class="card-head"><h3 class="card-title">初样完成记录</h3><div class="card-actions"><button class="btn sm" id="addStyleBtn" data-action="add-style">＋ 登记初样</button></div></div>
+            <div class="card-content"><div id="workStyleList"></div></div>
+          </div>
+          <div class="card" data-card="workBoardCard">
+            <div class="card-head"><h3 class="card-title">任务看板</h3><div class="card-actions"><button class="btn primary" id="addTaskBtn" data-action="add-task">＋ 新建任务</button></div></div>
+            <div class="card-content"><div class="board" id="workBoard"></div></div>
+          </div>
+          <div class="card" data-card="workNotesCard">
+            <div class="card-head"><h3 class="card-title">设计灵感与笔记</h3><div class="card-actions"><button class="btn sm" id="addNoteBtn" data-action="add-note">＋ 记录</button></div></div>
+            <div class="card-content"><div class="note-grid" id="workNotes"></div></div>
+          </div>
+          <div class="add-card-bar"><button class="add-card-btn" data-action="add-card" data-page="work">＋ 新增空白卡片</button></div>
+        </div>
+      </section>
+
+      <!-- 健康饮食 -->
+      <section class="page" id="page-diet" data-page="diet">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">健康饮食</h1>
+            <p class="page-desc">记录每日饮食与卡路里，拍照识别营养成分表换算</p>
+          </div>
+        </div>
+        <div class="page-cards" data-sortable data-page="diet">
+          <div class="card" data-card="dietQuickPasteCard">
+            <div class="card-head"><h3 class="card-title">⚡ 豆包快速粘贴</h3><div class="card-actions"><button class="btn sm" data-action="copy-doubao-prompt">📋 复制给豆包的指令</button><button class="btn sm" data-action="toggle-paste-help" id="pasteHelpBtn">使用说明</button></div></div>
+            <div class="card-content">
+              <div class="paste-help" id="pasteHelp" style="display:none">
+                <div class="help-step"><strong>①</strong> 复制上面的指令发给豆包，它会固定按这个格式回答：</div>
+                <pre class="help-sample">食物：鸡蛋
+克数：100
+热量：144
+蛋白质：13
+脂肪：9
+碳水：1
+钠：130
+膳食纤维：0</pre>
+                <div class="help-step"><strong>②</strong> 把豆包的回答复制粘贴到下面 → 点「解析」</div>
+                <div class="help-step"><strong>③</strong> 核对 → 点「保存」自动入库（自动加到当前餐次）</div>
+              </div>
+              <div class="field-row"><div class="field"><label>餐次</label><select id="qp-meal"></select></div><div class="field"><label>日期</label><input type="date" id="qp-date" /></div></div>
+              <textarea id="qp-text" placeholder="把豆包的回答原样粘贴到这里…（一次可以粘多份食物，每份之间空一行）" rows="6"></textarea>
+              <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+                <button class="btn primary" id="qp-parse-btn">🔍 解析</button>
+                <button class="btn" id="qp-save-btn" style="display:none">💾 保存全部</button>
+                <span id="qp-status" class="qp-status"></span>
+              </div>
+              <div id="qp-result" class="qp-result" style="display:none"></div>
+            </div>
+          </div>
+          <div class="card" data-card="dietSummaryCard">
+            <div class="card-head"><h3 class="card-title">今日营养概览</h3><div class="card-actions"></div></div>
+            <div class="card-content"><div class="diet-summary" id="dietSummary"></div></div>
+          </div>
+          <div class="card" data-card="dietMealsCard">
+            <div class="card-head"><h3 class="card-title">今日餐次</h3><div class="card-actions"><button class="btn primary" id="addFoodBtn" data-action="add-food">＋ 添加食物</button></div></div>
+            <div class="card-content"><div class="meal-grid" id="mealGrid"></div></div>
+          </div>
+          <div class="card" data-card="foodLibCard">
+            <div class="card-head"><h3 class="card-title">我的食材库</h3><div class="card-actions"><button class="btn sm" id="addFoodLibBtn" data-action="add-food-lib">＋ 新增食材</button></div></div>
+            <div class="card-content"><div class="note-grid" id="foodLibList"></div></div>
+          </div>
+          <div class="add-card-bar"><button class="add-card-btn" data-action="add-card" data-page="diet">＋ 新增空白卡片</button></div>
+        </div>
+      </section>
+
+      <!-- 体重体脂 -->
+      <section class="page" id="page-body" data-page="body">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">体重体脂记录</h1>
+            <p class="page-desc">录入体脂秤数据，追踪身体变化趋势</p>
+          </div>
+        </div>
+        <div class="page-cards" data-sortable data-page="body">
+          <div class="card" data-card="bodyCardsCard">
+            <div class="card-head"><h3 class="card-title">最新体测</h3><div class="card-actions"><button class="btn primary" id="addBodyBtn" data-action="add-body">＋ 录入数据</button></div></div>
+            <div class="card-content"><div class="body-cards" id="bodyCards"></div></div>
+          </div>
+          <div class="card" data-card="bodyWeightChartCard">
+            <div class="card-head"><h3 class="card-title">体重趋势</h3><div class="card-actions"></div></div>
+            <div class="card-content"><div class="chart-box"><canvas id="weightChart"></canvas></div></div>
+          </div>
+          <div class="card" data-card="bodyFatChartCard">
+            <div class="card-head"><h3 class="card-title">体脂率趋势</h3><div class="card-actions"></div></div>
+            <div class="card-content"><div class="chart-box"><canvas id="fatChart"></canvas></div></div>
+          </div>
+          <div class="card" data-card="bodyTableCard">
+            <div class="card-head"><h3 class="card-title">历史记录</h3><div class="card-actions"></div></div>
+            <div class="card-content"><div class="table-wrap" id="bodyTable"></div></div>
+          </div>
+          <div class="add-card-bar"><button class="add-card-btn" data-action="add-card" data-page="body">＋ 新增空白卡片</button></div>
+        </div>
+      </section>
+
+      <!-- 课外提升 -->
+      <section class="page" id="page-study" data-page="study">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">课外提升 · 备考健康管理师</h1>
+            <p class="page-desc">学习计划、进度跟踪与知识笔记</p>
+          </div>
+        </div>
+        <div class="page-cards" data-sortable data-page="study">
+          <div class="card" data-card="studyOverviewCard">
+            <div class="card-head"><h3 class="card-title">备考概览</h3><div class="card-actions"><button class="btn sm" id="studyCountdownBtn" data-action="study-countdown">设置考试日期</button></div></div>
+            <div class="card-content"><div class="study-overview" id="studyOverview"></div></div>
+          </div>
+          <div class="card" data-card="studyListCard">
+            <div class="card-head"><h3 class="card-title">学习计划</h3><div class="card-actions"><button class="btn primary" id="addStudyBtn" data-action="add-study">＋ 学习计划</button></div></div>
+            <div class="card-content"><div id="studyList"></div></div>
+          </div>
+          <div class="card" data-card="knowledgeCard">
+            <div class="card-head"><h3 class="card-title">知识笔记</h3><div class="card-actions"><button class="btn sm" id="addKnowledgeBtn" data-action="add-knowledge">＋ 笔记</button></div></div>
+            <div class="card-content"><div class="note-grid" id="knowledgeNotes"></div></div>
+          </div>
+          <div class="add-card-bar"><button class="add-card-btn" data-action="add-card" data-page="study">＋ 新增空白卡片</button></div>
+        </div>
+      </section>
+
+      <!-- 中级职称 -->
+      <section class="page" id="page-title" data-page="title">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">中级职称评定 · 浙江嘉兴</h1>
+            <p class="page-desc">课时跟踪、成果记录与评定材料管理</p>
+          </div>
+        </div>
+        <div class="page-cards" data-sortable data-page="title">
+          <div class="card" data-card="titleOverviewCard">
+            <div class="card-head"><h3 class="card-title">课时进度</h3><div class="card-actions"><button class="btn sm" id="titleYearBtn" data-action="title-year">切换年份</button><button class="btn primary" id="addCourseBtn" data-action="add-course">＋ 登记课时</button></div></div>
+            <div class="card-content"><div class="title-overview" id="titleOverview"></div></div>
+          </div>
+          <div class="card" data-card="titleCourseChartCard">
+            <div class="card-head"><h3 class="card-title">课时完成进度</h3><div class="card-actions"></div></div>
+            <div class="card-content"><div class="chart-box"><canvas id="courseChart"></canvas></div></div>
+          </div>
+          <div class="card" data-card="titleAchievementCard">
+            <div class="card-head"><h3 class="card-title">成果记录</h3><div class="card-actions"><button class="btn sm" id="addAchievementBtn" data-action="add-achievement">＋ 成果</button></div></div>
+            <div class="card-content"><div class="achievement-list" id="achievementList"></div></div>
+          </div>
+          <div class="card" data-card="courseTableCard">
+            <div class="card-head"><h3 class="card-title">课时明细</h3><div class="card-actions"></div></div>
+            <div class="card-content"><div class="table-wrap" id="courseTable"></div></div>
+          </div>
+          <div class="add-card-bar"><button class="add-card-btn" data-action="add-card" data-page="title">＋ 新增空白卡片</button></div>
+        </div>
+      </section>
+
+      <!-- 运动打卡 -->
+      <section class="page" id="page-sport" data-page="sport">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">健康运动打卡</h1>
+            <p class="page-desc">坚持运动，久坐族的活力补给站</p>
+          </div>
+        </div>
+        <div class="page-cards" data-sortable data-page="sport">
+          <div class="card" data-card="sportOverviewCard">
+            <div class="card-head"><h3 class="card-title">运动概览</h3><div class="card-actions"><button class="btn primary" id="sportCheckBtn" data-action="sport-check">🏃 今日打卡</button></div></div>
+            <div class="card-content"><div class="sport-overview" id="sportOverview"></div></div>
+          </div>
+          <div class="card" data-card="miniCard">
+            <div class="card-head"><h3 class="card-title">每日小动作打卡</h3><div class="card-actions"><button class="btn sm" id="addMiniBtn" data-action="add-mini">＋ 新增动作</button></div></div>
+            <div class="card-content"><div class="mini-grid" id="miniGrid"></div></div>
+          </div>
+          <div class="card" data-card="bandCard">
+            <div class="card-head"><h3 class="card-title">华为手环数据</h3><div class="card-actions"><button class="btn sm" id="addBandBtn" data-action="add-band">＋ 录入</button></div></div>
+            <div class="card-content"><div class="band-grid" id="bandGrid"></div><div class="chart-box" style="margin-top:10px"><canvas id="bandChart"></canvas></div></div>
+          </div>
+          <div class="card" data-card="sportCalendarCard">
+            <div class="card-head"><h3 class="card-title">本月打卡日历</h3><div class="card-actions"></div></div>
+            <div class="card-content"><div class="calendar" id="sportCalendar"></div></div>
+          </div>
+          <div class="add-card-bar"><button class="add-card-btn" data-action="add-card" data-page="sport">＋ 新增空白卡片</button></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 模态弹层 -->
+  <div class="modal-mask" id="modalMask">
+    <div class="modal" id="modalBox">
+      <div class="modal-head">
+        <h3 id="modalTitle">弹窗</h3>
+        <button class="modal-close" id="modalClose">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-foot" id="modalFoot"></div>
+    </div>
+  </div>
+
+  <!-- 右键菜单 -->
+  <div class="ctx-mask" id="ctxMask"></div>
+  <div class="ctx-menu" id="ctxMenu"></div>
+
+  <!-- 浮动提示 -->
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/layout.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/ocr.js"></script>
+</body>
+</html>
