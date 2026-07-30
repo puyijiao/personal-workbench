@@ -728,17 +728,24 @@ var Diet = {
       r.onload = function () { $('#fd-imgel', box).src = r.result; $('#fd-preview', box).classList.add('show'); };
       r.readAsDataURL(file);
     };
-    /* OCR 智能识别营养数据 */
+    /* OCR 智能识别营养数据（第一次慢，可同时手动填写下方数据） */
     $('#fd-ocr-btn', box).onclick = function () {
       var imgEl = $('#fd-imgel', box);
       if (!imgEl.src) { toast('请先上传照片'); return; }
       var status = $('#fd-ocr-status', box);
-      status.innerHTML = '<span class="ocr-loading">⏳ 正在加载识别引擎…</span>';
+      status.innerHTML = '<span class="ocr-loading">⏳ 正在加载识别引擎…（首次加载需下载15MB中文包，请耐心等待）</span>';
+      /* 15秒后提示可手动填写 */
+      var fallbackTimer = setTimeout(function () {
+        if (status.querySelector('.ocr-loading')) {
+          status.innerHTML = '<div class="ocr-loading">⏳ 识别引擎加载中…</div><div style="margin-top:6px;padding:8px;background:rgba(59,130,246,.08);border-radius:8px;font-size:13px;color:var(--ink)">💡 <b>无需等待</b>，可直接填写下方数据提交，使用 <b>豆包粘贴</b> 更快捷 ⚡</div>';
+        }
+      }, 15000);
       OCR.recognize(imgEl.src, function (st, prog) {
         var labels = { 'loading language traineddata': '加载中文语言包…', 'recognizing text': '正在识别文字…' };
         status.innerHTML = '<span class="ocr-loading">⏳ ' + (labels[st] || st) + ' ' + Math.round((prog || 0) * 100) + '%</span>';
       }, function (err, text) {
-        if (err) { status.innerHTML = '<span class="ocr-error">⚠ 识别失败：' + (err.message || '网络错误') + '，请手动填写</span>'; return; }
+        if (err) { status.innerHTML = '<span class="ocr-error">⚠ 识别超时，按标签上数字直接手动填写即可</span>'; return; }
+        clearTimeout(fallbackTimer);
         var p = OCR.parseNutritionLabel(text);
         var filled = [];
         if (p.energyKj != null && p.energy == null) { $('#fd-pkj', box).value = p.energyKj; filled.push('能量(kJ)'); }
