@@ -32,6 +32,7 @@ document.addEventListener('click', function (e) {
       /* 导出导入 */
       case 'export-data': exportData(); break;
       case 'import-data': $('#importInput').click(); break;
+      case 'import-clipboard': importFromClipboard(); break;
       case 'rename-workbench': renameWorkbench(); break;
       /* 本职工作 */
       case 'add-task': Work.editTask(); break;
@@ -522,6 +523,31 @@ function parseNutritionText(text) {
   return items;
 }
 
+/**
+ * 在食材库和内置库中查找食物名
+ * 优先匹配食材库（用户自定义），再匹配内置库
+ * @param {string} name 食物名称
+ * @returns {object|null} 匹配到的食物对象，含 custom 标记
+ */
+function matchFoodInDb(name) {
+  if (!name) return null;
+  var q = name.toLowerCase().trim();
+  // 优先：食材库
+  var lib = Store.get('foodLib', []);
+  for (var i = 0; i < lib.length; i++) {
+    if (lib[i].name.toLowerCase().indexOf(q) !== -1 || q.indexOf(lib[i].name.toLowerCase()) !== -1) {
+      return { ...lib[i], custom: true };
+    }
+  }
+  // 其次：内置库
+  for (var j = 0; j < FOOD_DB.length; j++) {
+    if (FOOD_DB[j].name.toLowerCase().indexOf(q) !== -1 || q.indexOf(FOOD_DB[j].name.toLowerCase()) !== -1) {
+      return { ...FOOD_DB[j], custom: false };
+    }
+  }
+  return null;
+}
+
 var Diet = {
   render: function () { this.renderSummary(); this.renderMeals(); this.renderFoodLib(); this.mountQuickPaste(); },
   editGoal: function () {
@@ -963,8 +989,11 @@ var Diet = {
       return;
     }
     var html = '<div class="qp-summary">识别到 <b>' + items.length + '</b> 份食物：</div>';
-    html += '<div class="qp-table"><div class="qp-th">食物</div><div class="qp-th">克数</div><div class="qp-th">热量</div><div class="qp-th">蛋白</div><div class="qp-th">脂肪</div><div class="qp-th">碳水</div></div>';
+    html += '<div class="qp-table"><div class="qp-th">食物</div><div class="qp-th">克数</div><div class="qp-th">热量</div><div class="qp-th">蛋白</div><div class="qp-th">脂肪</div><div class="qp-th">碳水</div><div class="qp-th">数据源</div></div>';
     items.forEach(function (it, idx) {
+      var matched = matchFoodInDb(it.name);
+      var srcIcon = matched ? (matched.custom ? '🧑‍🌾' : '📖') : '🤖';
+      var srcTxt = matched ? (matched.custom ? '食材库' : '内置库') : '豆包提供';
       html += '<div class="qp-tr" data-idx="' + idx + '">' +
         '<div class="qp-td">' + escape(it.name) + '</div>' +
         '<div class="qp-td">' + it.amount + 'g</div>' +
@@ -972,13 +1001,14 @@ var Diet = {
         '<div class="qp-td">' + it.protein + 'g</div>' +
         '<div class="qp-td">' + it.fat + 'g</div>' +
         '<div class="qp-td">' + it.carb + 'g</div>' +
+        '<div class="qp-td" style="font-size:11px">' + srcIcon + ' ' + srcTxt + '</div>' +
         '</div>';
     });
     html += '<div class="qp-total">合计：' + items.reduce(function (s, it) { return s + it.energy; }, 0) + ' kcal</div>';
     box.innerHTML = html;
     box.style.display = 'block';
     $('#qp-save-btn').style.display = 'inline-block';
-    $('#qp-status').textContent = '✓ 解析成功';
+    $('#qp-status').textContent = '✓ 已匹配食材库·点击保存按库计算';
   },
   saveQuickPaste: function () {
     var txt = $('#qp-text').value.trim();
@@ -988,29 +1018,46 @@ var Diet = {
     var meal = $('#qp-meal').value;
     var date = $('#qp-date').value;
     var arr = Store.get('diet', []);
+    var libUsed = 0, dbUsed = 0, fallbackUsed = 0;
     items.forEach(function (it) {
+      var matched = matchFoodInDb(it.name);
+      var nutri, dbName;
+      if (matched) {
+        nutri = nutriForAmount(matched, it.amount);
+        dbName = matched.name;
+        if (matched.custom) libUsed++; else dbUsed++;
+      } else {
+        // 食材库/内置库都没找到，用豆包的数据
+        nutri = { energy: it.energy, protein: it.protein, fat: it.fat, carb: it.carb, fiber: it.fiber, sodium: it.sodium };
+        dbName = it.name;
+        fallbackUsed++;
+      }
       arr.push({
         id: uid(),
         date: date,
         meal: meal,
-        name: it.name,
+        name: dbName,
         amount: it.amount,
-        energy: it.energy,
-        protein: it.protein,
-        fat: it.fat,
-        carb: it.carb,
-        fiber: it.fiber,
-        sodium: it.sodium,
-        source: '豆包粘贴'
+        energy: nutri.energy,
+        protein: nutri.protein,
+        fat: nutri.fat,
+        carb: nutri.carb,
+        fiber: nutri.fiber || 0,
+        sodium: nutri.sodium || 0,
+        source: matched ? (matched.custom ? '食材库' : '内置库') : '豆包'
       });
     });
     Store.set('diet', arr);
     this.renderSummary(); this.renderMeals();
+    var msg = '✓ 保存完成';
+    if (libUsed) msg += ' · ' + libUsed + '项来自食材库';
+    if (dbUsed) msg += ' · ' + dbUsed + '项来自内置库';
+    if (fallbackUsed) msg += ' · ' + fallbackUsed + '项使用豆包估算';
     $('#qp-text').value = '';
     $('#qp-result').style.display = 'none';
     $('#qp-save-btn').style.display = 'none';
     $('#qp-status').textContent = '';
-    toast('✓ 已保存 ' + items.length + ' 份到' + MEALS.find(function (m) { return m[0] === meal; })[1]);
+    toast(msg);
   }
 };
 
@@ -1516,6 +1563,51 @@ var Sport = {
 };
 
 /* ---------- 导入导出（v2 格式，含布局） ---------- */
+function importFromText(jsonStr) {
+  try {
+    var obj = JSON.parse(jsonStr);
+    if (obj && obj.v === 2 && obj.data) {
+      var cur = Store.load();
+      var imp = obj.data;
+      var merged = 0, skipped = 0;
+      for (var key in imp) {
+        if (cur[key] === undefined) { cur[key] = imp[key]; merged++; }
+        else if (Array.isArray(cur[key]) && Array.isArray(imp[key])) {
+          var existingIds = {};
+          cur[key].forEach(function(item) { if (item.id) existingIds[item.id] = true; });
+          imp[key].forEach(function(item) {
+            if (item.id && !existingIds[item.id]) { cur[key].push(item); existingIds[item.id] = true; merged++; }
+            else { skipped++; }
+          });
+        } else { cur[key] = imp[key]; merged++; }
+      }
+      Store._cache = cur; Store.save();
+      localStorage.setItem(Layout.KEY, JSON.stringify(obj.layout || Layout.defaultCfg()));
+      toast('导入合并完成 ✓ 新增 ' + merged + ' 项 · 跳过 ' + skipped + ' 条重复');
+    } else if (obj && typeof obj === 'object') {
+      Store._cache = obj; Store.save();
+      toast('导入成功（旧格式）');
+    } else { toast('文件格式有误'); return; }
+    location.reload();
+  } catch (err) { toast('解析失败，请检查内容'); }
+}
+
+function importFromClipboard() {
+  openModal('从剪贴板导入',
+    '<div class="hint" style="margin-bottom:10px">复制 JSON 文件内容粘贴到下方文本框：</div>' +
+    '<textarea id="import-textarea" style="width:100%;min-height:120px;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12px;font-family:monospace;resize:vertical" placeholder="将 JSON 文件内容黏贴到这里…"></textarea>',
+    '<button class="btn" data-action="modal-cancel">取消</button><button class="btn primary" id="import-text-btn">导入</button>',
+    function () {
+      $('#import-text-btn').onclick = function () {
+        var txt = $('#import-textarea').value.trim();
+        if (!txt) { toast('请先粘贴内容'); return; }
+        closeModal();
+        importFromText(txt);
+      };
+    }
+  );
+}
+
 function exportData() {
   var payload = { v: 2, data: Store.load(), layout: Layout.cfg };
   var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
