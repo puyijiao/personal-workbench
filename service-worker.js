@@ -1,19 +1,19 @@
 /* ===== 桃子工作台 - 离线缓存服务 ===== */
 /* 版本号：更新代码时一起改，触发旧缓存清理 */
-var CACHE_NAME = 'workbench-v1';
+var CACHE_NAME = 'workbench-v2';
 
 /* 需要离线缓存的文件（首次安装时预存） */
 var PRECACHE_FILES = [
-  '/personal-workbench/',
-  '/personal-workbench/index.html',
-  '/personal-workbench/manifest.json',
-  '/personal-workbench/icon-192.png',
-  '/personal-workbench/icon-512.png',
-  '/personal-workbench/css/style.css',
-  '/personal-workbench/js/storage.js',
-  '/personal-workbench/js/layout.js',
-  '/personal-workbench/js/app.js',
-  '/personal-workbench/js/ocr.js',
+  'https://puyijiao.github.io/personal-workbench/',
+  'https://puyijiao.github.io/personal-workbench/index.html',
+  'https://puyijiao.github.io/personal-workbench/manifest.json',
+  'https://puyijiao.github.io/personal-workbench/icon-192.png',
+  'https://puyijiao.github.io/personal-workbench/icon-512.png',
+  'https://puyijiao.github.io/personal-workbench/css/style.css',
+  'https://puyijiao.github.io/personal-workbench/js/storage.js',
+  'https://puyijiao.github.io/personal-workbench/js/layout.js',
+  'https://puyijiao.github.io/personal-workbench/js/app.js',
+  'https://puyijiao.github.io/personal-workbench/js/ocr.js',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.min.css'
 ];
