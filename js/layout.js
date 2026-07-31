@@ -49,6 +49,7 @@ var BUILTIN_SIDEBAR = [
   { id: 'study', type: 'builtin', icon: '📚', name: '课外提升' },
   { id: 'title', type: 'builtin', icon: '🎓', name: '中级职称' },
   { id: 'sport', type: 'builtin', icon: '🏃', name: '运动打卡' },
+  { id: 'archive', type: 'builtin', icon: '📁', name: '项目档案' },
 ];
 
 var BUILTIN_CARDS = {
@@ -59,6 +60,7 @@ var BUILTIN_CARDS = {
   study: ['studyOverviewCard', 'studyListCard', 'knowledgeCard'],
   title: ['titleOverviewCard', 'titleCourseChartCard', 'titleAchievementCard', 'courseTableCard'],
   sport: ['sportOverviewCard', 'miniCard', 'bandCard', 'sportCalendarCard'],
+  archive: ['archiveCard'],
 };
 
 var DEFAULT_NAMES = {
@@ -69,6 +71,7 @@ var DEFAULT_NAMES = {
   studyOverviewCard: '备考概览', studyListCard: '学习计划', knowledgeCard: '知识笔记',
   titleOverviewCard: '课时进度', titleCourseChartCard: '课时完成进度', titleAchievementCard: '成果记录', courseTableCard: '课时明细',
   sportOverviewCard: '运动概览', miniCard: '每日小动作打卡', bandCard: '华为手环数据', sportCalendarCard: '本月打卡日历',
+  archiveCard: '项目档案',
 };
 
 var Layout = {
