@@ -399,9 +399,10 @@ table tr:hover td{background:#f8fafc}
   .nav-item{justify-content:center}
   .main{padding:20px 18px 50px}
   .board,.meal-grid,.charts-row,.work-top{grid-template-columns:1fr}
-  /* 手机端：把导出/导入放到顶部右侧悬浮按钮栏，避免找不到 */
-  .sidebar-foot{position:fixed;top:8px;right:8px;left:auto;display:flex;flex-direction:row;gap:6px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:8px;padding:4px;box-shadow:var(--shadow);z-index:99}
-  .sidebar-foot .btn-ghost{padding:6px 10px;font-size:12px}
+  /* 手机端：工具按钮放在侧边栏底部，竖排图标 */
+  .sidebar-foot{position:static;flex-direction:column;gap:2px;padding:6px 0 0;border-top:1px solid var(--line);margin-top:auto;box-shadow:none;background:transparent;align-items:center}
+  .sidebar-foot .btn-ghost{width:44px;height:38px;padding:0;font-size:0;display:flex;align-items:center;justify-content:center;border-radius:8px}
+  .sidebar-foot .btn-ghost:hover{background:rgba(99,102,241,.08)}
 }
 
 /* ===== 豆包快速粘贴卡片 ===== */
@@ -413,7 +414,7 @@ table tr:hover td{background:#f8fafc}
 .qp-result{margin-top:12px;padding:12px;background:rgba(245,158,11,.04);border-radius:10px}
 .qp-empty{padding:12px;color:#dc2626;font-size:13px;text-align:center}
 .qp-summary{font-size:13px;color:var(--ink);margin-bottom:8px;font-weight:600}
-.qp-table,.qp-tr{display:grid;grid-template-columns:2fr 1fr 1.2fr 1fr 1fr 1fr;gap:6px}
+.qp-table,.qp-tr{display:grid;grid-template-columns:2fr 1fr 1.2fr 1fr 1fr 1fr 1.2fr;gap:6px}
 .qp-table{padding:6px 8px;background:var(--c-diet);color:#fff;border-radius:6px;font-size:12px;font-weight:600}
 .qp-tr{padding:6px 8px;font-size:13px;border-bottom:1px solid var(--line);align-items:center}
 .qp-tr:nth-child(even){background:rgba(245,158,11,.03)}
