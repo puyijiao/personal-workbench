@@ -44,8 +44,8 @@ $('#modalMask').addEventListener('click', function (e) { if (e.target.id === 'mo
 var BUILTIN_SIDEBAR = [
   { id: 'dashboard', type: 'builtin', icon: '🏠', name: '总览仪表盘' },
   { id: 'work', type: 'builtin', icon: '👗', name: '本职工作' },
-  { id: 'diet', type: 'builtin', icon: '🍱', name: '健康饮食' },
-  { id: 'body', type: 'builtin', icon: '⚖️', name: '体重体脂' },
+  { id: 'diet', type: 'builtin', icon: '🍚', name: '健康饮食' },
+  { id: 'body', type: 'builtin', icon: '📋', name: '体重体脂' },
   { id: 'study', type: 'builtin', icon: '📚', name: '课外提升' },
   { id: 'title', type: 'builtin', icon: '🎓', name: '中级职称' },
   { id: 'sport', type: 'builtin', icon: '🏃', name: '运动打卡' },
@@ -119,6 +119,8 @@ var Layout = {
         ex.type = 'builtin';
         if (!ex.icon) ex.icon = b.icon;
         if (ex.id === 'work' && ex.icon === '✂️') ex.icon = '👗';
+        if (ex.id === 'diet' && ex.icon === '🍱') ex.icon = '🍚';
+        if (ex.id === 'body' && ex.icon === '⚖️') ex.icon = '📋';
         if (ex.name == null) ex.name = b.name;
         if (ex.hidden == null) ex.hidden = false;
       }
