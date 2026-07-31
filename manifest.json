@@ -4,7 +4,7 @@
   "description": "管理设计、饮食、学习与健康，一站式个人工作台",
   "start_url": "https://puyijiao.github.io/personal-workbench/?source=pwa",
   "scope": "https://puyijiao.github.io/personal-workbench/",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#eef1f6",
   "theme_color": "#6366f1",
   "orientation": "portrait",
