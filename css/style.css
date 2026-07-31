@@ -424,17 +424,3 @@ table tr:hover td{background:#f8fafc}
   .qp-table,.qp-tr{grid-template-columns:1.5fr 1fr 1fr;font-size:11px}
   .qp-table .qp-th:nth-child(n+4),.qp-tr .qp-td:nth-child(n+4){display:none}
 }
-
-/* ===== 项目档案时间线 ===== */
-.archive-loading{text-align:center;padding:30px;color:var(--ink-soft);font-size:14px}
-.archive-empty{text-align:center;padding:30px;color:#dc2626;font-size:14px}
-.archive-summary{margin-bottom:14px;font-size:13px;color:var(--ink-soft)}
-.archive-list{position:relative;padding-left:26px}
-.archive-list::before{content:'';position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:linear-gradient(180deg,var(--c-study),var(--c-title))}
-.archive-item{position:relative;margin-bottom:18px}
-.ai-dot{position:absolute;left:-26px;top:2px;width:20px;height:20px;border-radius:50%;background:var(--card);border:2px solid var(--c-study);display:flex;align-items:center;justify-content:center;font-size:10px;z-index:1}
-.archive-item.first .ai-dot{border-color:var(--c-diet);background:rgba(245,158,11,.1)}
-.ai-body{background:var(--card);border-radius:10px;padding:10px 14px;box-shadow:var(--shadow);border-left:3px solid var(--c-study)}
-.archive-item.first .ai-body{border-left-color:var(--c-diet)}
-.ai-msg{font-size:14px;font-weight:600;color:var(--ink);word-break:break-word}
-.ai-meta{font-size:11px;color:var(--ink-soft);margin-top:4px}
