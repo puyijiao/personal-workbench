@@ -7,7 +7,7 @@
 function navigate(target) {
   $$('.nav-item').forEach(function (n) { n.classList.toggle('active', n.dataset.target === target); });
   $$('.page').forEach(function (p) { p.classList.toggle('active', p.id === 'page-' + target); });
-  var map = { dashboard: Dashboard, work: Work, diet: Diet, body: Body, study: Study, title: Title, sport: Sport };
+  var map = { dashboard: Dashboard, work: Work, diet: Diet, body: Body, study: Study, title: Title, sport: Sport, archive: Archive };
   try { if (map[target]) map[target].render(); }
   catch (e) { console.error('渲染「' + target + '」失败:', e); }
   if (typeof Layout !== 'undefined') Layout.afterRender(target);
@@ -34,6 +34,7 @@ document.addEventListener('click', function (e) {
       case 'import-data': $('#importInput').click(); break;
       case 'import-clipboard': importFromClipboard(); break;
       case 'toggle-fullscreen': toggleFullscreen(); break;
+      case 'archive-refresh': Archive.render(); break;
       case 'rename-workbench': renameWorkbench(); break;
       /* 本职工作 */
       case 'add-task': Work.editTask(); break;
@@ -1618,6 +1619,68 @@ function exportData() {
   a.click();
   toast('已导出备份（含自定义布局）');
 }
+
+/* ---------- 项目档案（自动读取 GitHub 提交历史） ---------- */
+var Archive = {
+  REPO: 'puyijiao/personal-workbench',
+  render: function () {
+    var box = $('#archiveTimeline');
+    if (!box) return;
+    box.innerHTML = '<div class="archive-loading">📡 正在获取提交记录…</div>';
+    var self = this;
+    /* 缓存：同一会话内不重复请求 */
+    if (this._cache) { this.renderList(this._cache); return; }
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'https://api.github.com/repos/' + this.REPO + '/commits?per_page=100', true);
+    xhr.timeout = 15000;
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        try {
+          var commits = JSON.parse(xhr.responseText);
+          self._cache = commits;
+          self.renderList(commits);
+        } catch (e) { box.innerHTML = '<div class="archive-empty">⚠ 数据解析失败</div>'; }
+      } else {
+        box.innerHTML = '<div class="archive-empty">⚠ 无法连接 GitHub，请检查网络后点「刷新」重试</div>';
+      }
+    };
+    xhr.onerror = function () {
+      box.innerHTML = '<div class="archive-empty">⚠ 网络错误，无法获取提交记录</div>';
+    };
+    xhr.ontimeout = function () {
+      box.innerHTML = '<div class="archive-empty">⚠ 连接超时，请检查网络后点「刷新」重试</div>';
+    };
+    xhr.send();
+  },
+  renderList: function (commits) {
+    var box = $('#archiveTimeline');
+    if (!box) return;
+    if (!commits || !commits.length) {
+      box.innerHTML = '<div class="archive-empty">📭 暂无提交记录</div>';
+      return;
+    }
+    var html = '<div class="archive-summary">共 <b>' + commits.length + '</b> 条成长记录</div>';
+    html += '<div class="archive-list">';
+    commits.forEach(function (c, i) {
+      var date = (c.commit && c.commit.author && c.commit.author.date) || '';
+      var d = new Date(date);
+      var dateStr = isNaN(d.getTime()) ? '--' : (d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()));
+      var msg = (c.commit && c.commit.message) || '';
+      var isFirst = i === commits.length - 1;
+      html += '<div class="archive-item' + (isFirst ? ' first' : '') + '">' +
+        '<div class="ai-dot">' + (isFirst ? '🚀' : '🛠️') + '</div>' +
+        '<div class="ai-body">' +
+          '<div class="ai-msg">' + escape(msg.split('\n')[0]) + '</div>' +
+          '<div class="ai-meta">' + dateStr + (isFirst ? ' · 最初版本' : '') + '</div>' +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+    box.innerHTML = html;
+  }
+};
+
+function pad2(n) { return n < 10 ? '0' + n : '' + n; }
 
 /* 文件导入（智能合并模式） */
 $('#importInput').onchange = function (e) {
