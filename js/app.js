@@ -33,6 +33,7 @@ document.addEventListener('click', function (e) {
       case 'export-data': exportData(); break;
       case 'import-data': $('#importInput').click(); break;
       case 'import-clipboard': importFromClipboard(); break;
+      case 'toggle-fullscreen': toggleFullscreen(); break;
       case 'rename-workbench': renameWorkbench(); break;
       /* 本职工作 */
       case 'add-task': Work.editTask(); break;
@@ -1677,6 +1678,38 @@ function renameWorkbench() {
       };
     });
 }
+
+/* ---------- 全屏切换（点击隐藏浏览器UI，像真APP） ---------- */
+function toggleFullscreen() {
+  var el = document.documentElement;
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    if (el.requestFullscreen) {
+      el.requestFullscreen();
+    } else if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+    } else {
+      toast('您的浏览器不支持全屏模式');
+      return;
+    }
+    toast('🔲 已进入全屏模式，点击返回键/上滑退出');
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    }
+  }
+}
+document.addEventListener('fullscreenchange', function() {
+  var btn = $('#fullscreenBtn');
+  if (!btn) return;
+  btn.textContent = (document.fullscreenElement || document.webkitFullscreenElement) ? '⛶ 退出全屏' : '🔲 全屏';
+});
+document.addEventListener('webkitfullscreenchange', function() {
+  var btn = $('#fullscreenBtn');
+  if (!btn) return;
+  btn.textContent = (document.fullscreenElement || document.webkitFullscreenElement) ? '⛶ 退出全屏' : '🔲 全屏';
+});
 
 /* ====================================================================
    启动序列
