@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="工作台" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </head>
 <body>
   <div class="app">
@@ -28,6 +28,7 @@
         <button class="btn-ghost" id="exportBtn" data-action="export-data">⬇ 导出数据</button>
         <button class="btn-ghost" id="importBtn" data-action="import-data">⬆ 导入数据</button>
         <button class="btn-ghost" id="importClipBtn" data-action="import-clipboard" style="font-size:11px">📋 粘贴导入</button>
+        <button class="btn-ghost" id="fullscreenBtn" data-action="toggle-fullscreen" style="font-size:11px" title="全屏模式">🔲 全屏</button>
         <input type="file" id="importInput" accept="application/json" hidden />
       </div>
     </aside>
