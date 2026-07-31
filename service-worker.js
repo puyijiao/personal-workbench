@@ -1,6 +1,6 @@
 /* ===== 桃子工作台 - 离线缓存服务 ===== */
 /* 版本号：更新代码时一起改，触发旧缓存清理 */
-var CACHE_NAME = 'workbench-v2';
+var CACHE_NAME = 'workbench-v3';
 
 /* 需要离线缓存的文件（首次安装时预存） */
 var PRECACHE_FILES = [
