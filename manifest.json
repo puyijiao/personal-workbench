@@ -7,7 +7,7 @@
   "display": "fullscreen",
   "background_color": "#eef1f6",
   "theme_color": "#6366f1",
-  "orientation": "portrait",
+  "orientation": "any",
   "icons": [
     {
       "src": "https://puyijiao.github.io/personal-workbench/icon-192.png",
