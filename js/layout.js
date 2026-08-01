@@ -54,7 +54,7 @@ var BUILTIN_SIDEBAR = [
 var BUILTIN_CARDS = {
   dashboard: ['dashCard'],
   work: ['workRingCard', 'workStyleCard', 'workBoardCard', 'workNotesCard'],
-  diet: ['dietSummaryCard', 'dietMealsCard', 'foodLibCard'],
+  diet: ['dietSummaryCard', 'dietMealsCard', 'dietHistoryCard', 'foodLibCard'],
   body: ['bodyCardsCard', 'bodyWeightChartCard', 'bodyFatChartCard', 'bodyTableCard'],
   study: ['studyOverviewCard', 'studyListCard', 'knowledgeCard'],
   title: ['titleOverviewCard', 'titleCourseChartCard', 'titleAchievementCard', 'courseTableCard'],
@@ -64,7 +64,7 @@ var BUILTIN_CARDS = {
 var DEFAULT_NAMES = {
   dashCard: '今日总览',
   workRingCard: '设计稿进度', workStyleCard: '初样完成记录', workBoardCard: '任务看板', workNotesCard: '设计灵感与笔记',
-  dietSummaryCard: '今日营养概览', dietMealsCard: '今日餐次', foodLibCard: '我的食材库',
+  dietSummaryCard: '今日营养概览', dietMealsCard: '今日餐次', dietHistoryCard: '饮食历史回顾', foodLibCard: '我的食材库',
   bodyCardsCard: '最新体测', bodyWeightChartCard: '体重趋势', bodyFatChartCard: '体脂率趋势', bodyTableCard: '历史记录',
   studyOverviewCard: '备考概览', studyListCard: '学习计划', knowledgeCard: '知识笔记',
   titleOverviewCard: '课时进度', titleCourseChartCard: '课时完成进度', titleAchievementCard: '成果记录', courseTableCard: '课时明细',
