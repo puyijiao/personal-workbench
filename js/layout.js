@@ -136,6 +136,12 @@ var Layout = {
         if (pg.order.indexOf(cid) === -1) pg.order.push(cid);
       });
     });
+    /* 迁移规则：健康饮食页「我的食材库」始终排在最后 */
+    var dietPg = c.pages['diet'];
+    if (dietPg && Array.isArray(dietPg.order) && dietPg.order.indexOf('foodLibCard') !== -1) {
+      dietPg.order = dietPg.order.filter(function (x) { return x !== 'foodLibCard'; });
+      dietPg.order.push('foodLibCard');
+    }
     c.sidebar.forEach(function (i) { if (i.type === 'custom' && !c.pages[i.id]) c.pages[i.id] = { order: [], cards: {} }; });
   },
 
