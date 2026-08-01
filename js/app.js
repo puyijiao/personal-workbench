@@ -64,6 +64,7 @@ document.addEventListener('click', function (e) {
       case 'edit-diet-goal': Diet.editGoal(); break;
       case 'diet-hist-prev': Diet.histNav(-1); break;
       case 'diet-hist-next': Diet.histNav(1); break;
+      case 'diet-hist-fill': Diet.addFood('', Diet._histSel || today()); break;
       /* 体重体脂 */
       case 'add-body': Body.add(); break;
       case 'del-body': Body.del(id); break;
@@ -556,6 +557,7 @@ var Diet = {
   /* 历史回顾：日历 + 周汇总 + 选中日期明细 */
   _histYear: null, _histMonth: null, _histSel: null,
   renderHistory: function () {
+    var self = this;
     var box = $('#dietHistory');
     if (!box) return;
     var now = new Date();
@@ -604,9 +606,9 @@ var Diet = {
         });
         detailHtml += '</div>';
       });
-      detailHtml += '</div>';
+      detailHtml += '<button class="btn sm" data-action="diet-hist-fill" style="margin-top:10px;width:100%">＋ 补填 ' + sel + ' 的饮食</button></div>';
     } else {
-      detailHtml = '<div class="dh-detail empty">📭 ' + sel + ' 没有饮食记录</div>';
+      detailHtml = '<div class="dh-detail empty">📭 ' + sel + ' 没有饮食记录<br><button class="btn sm primary" data-action="diet-hist-fill" style="margin-top:10px">＋ 补填这天的饮食</button></div>';
     }
 
     var html =
@@ -738,7 +740,7 @@ var Diet = {
     var self = this;
     confirmDialog('删除饮食记录', '确认删除该条饮食记录？', function () {
       Store.set('diet', Store.get('diet', []).filter(function (x) { return x.id !== id; }));
-      self.renderSummary(); self.renderMeals(); toast('已删除');
+      self.renderSummary(); self.renderMeals(); self.renderHistory(); toast('已删除');
     }, { danger: true, okText: '删除' });
   },
   editFood: function (id) {
@@ -796,17 +798,17 @@ var Diet = {
           rec.fiber = r.fiber;
           rec.sodium = r.sodium;
           Store.set('diet', diet);
-          closeModal(); self.renderSummary(); self.renderMeals(); toast('已修改克重为 ' + amt + 'g');
+          closeModal(); self.renderSummary(); self.renderMeals(); self.renderHistory(); toast('已修改克重为 ' + amt + 'g');
         };
       });
   },
-  addFood: function (defaultMeal) {
+  addFood: function (defaultMeal, defaultDate) {
     var self = this;
     openModal('添加食物',
       '<div class="seg" id="foodMode"><button class="active" data-mode="lib">🔍 食物库选择</button><button data-mode="photo">📷 拍照识别营养表</button></div>' +
       '<div class="field-row"><div class="field"><label>餐次</label><select id="fd-meal">' +
       MEALS.map(function (m) { return '<option value="' + m[0] + '" ' + (m[0] === defaultMeal ? 'selected' : '') + '>' + m[1] + '</option>'; }).join('') +
-      '</select></div><div class="field"><label>日期</label><input type="date" id="fd-date" value="' + today() + '" /></div></div>' +
+      '</select></div><div class="field"><label>日期</label><input type="date" id="fd-date" value="' + (defaultDate || today()) + '" /></div></div>' +
       '<div id="mode-lib"><div class="field"><label>搜索食物</label><div class="food-search-box"><input id="fd-search" placeholder="输入食物名，如：鸡蛋、米饭" autocomplete="off" /><div class="food-suggest" id="fd-suggest"></div></div></div>' +
       '<div class="field"><label>食用量 (克)</label><input type="number" id="fd-amount" value="100" min="1" /><div class="hint">输入实际食用克数，系统按比例换算营养素</div></div></div>' +
       '<div id="mode-photo" style="display:none"><div class="field"><label>上传营养成分表照片</label><input type="file" id="fd-img" accept="image/*" /><button class="btn sm" id="fd-ocr-btn" style="margin-top:8px;width:100%">🤖 智能识别营养数据</button><div class="img-preview" id="fd-preview"><img id="fd-imgel" /></div>' +
@@ -957,7 +959,7 @@ var Diet = {
         } else { toast('食材库已有同名食材，未重复保存'); }
       }
     }
-    closeModal(); this.renderSummary(); this.renderMeals(); this.renderFoodLib(); toast('已记录饮食');
+    closeModal(); this.renderSummary(); this.renderMeals(); this.renderFoodLib(); this.renderHistory(); toast('已记录饮食');
   },
   renderFoodLib: function () {
     var lib = Store.get('foodLib', []);
