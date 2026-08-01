@@ -602,7 +602,11 @@ var Diet = {
         var mName = { breakfast: '🌅 早餐', lunch: '☀️ 午餐', dinner: '🌙 晚餐', snack: '🍪 加餐' }[mk] || mk;
         detailHtml += '<div class="dh-meal"><div class="dh-meal-name">' + mName + '</div>';
         meals[mk].forEach(function (x) {
-          detailHtml += '<div class="dh-item"><span>' + escape(x.name) + ' ' + x.amount + 'g</span><b>' + Math.round(x.energy) + ' kcal</b></div>';
+          detailHtml += '<div class="dh-item"><div class="dh-item-info"><span>' + escape(x.name) + ' ' + x.amount + 'g</span><b>' + Math.round(x.energy) + ' kcal</b></div>' +
+            '<div class="dh-item-ops">' +
+              '<button class="dh-op" data-action="edit-food" data-id="' + x.id + '" title="编辑">✎</button>' +
+              '<button class="dh-op del" data-action="del-food" data-id="' + x.id + '" title="删除">🗑</button>' +
+            '</div></div>';
         });
         detailHtml += '</div>';
       });
