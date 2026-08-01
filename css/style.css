@@ -31,6 +31,10 @@ a{color:inherit;text-decoration:none}
 ::-webkit-scrollbar-thumb{background:#cdd3de;border-radius:8px}
 ::-webkit-scrollbar-track{background:transparent}
 
+/* 全局防横向滚动：页面内容永远不超出屏幕宽度 */
+html,body{overflow-x:hidden;max-width:100%}
+*,*::before,*::after{box-sizing:border-box}
+
 /* 布局 */
 .app{display:flex;min-height:100vh}
 .sidebar{
@@ -64,9 +68,9 @@ a{color:inherit;text-decoration:none}
 .btn-ghost{background:#f1f5f9;color:var(--ink-soft);padding:9px;border-radius:8px;font-size:12px;transition:.15s}
 .btn-ghost:hover{background:#e2e8f0;color:var(--ink)}
 
-.main{flex:1;min-width:0;padding:28px 36px 60px;max-width:100%}
+.main{flex:1;min-width:0;padding:28px 36px 60px;max-width:100%;width:0}
 .page{display:none;animation:fade .3s ease}
-.page.active{display:block}
+.page.active{display:block;max-width:100%;overflow:hidden}
 @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .page-head{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px}
 .page-title{font-size:24px;font-weight:800;letter-spacing:.5px}
@@ -83,7 +87,7 @@ a{color:inherit;text-decoration:none}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 
 /* 卡片 */
-.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:18px}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:18px;max-width:100%;overflow:hidden}
 .card-head{display:flex;align-items:center;gap:8px;margin-bottom:14px}
 .card-head .card-title{font-size:15px;font-weight:700;flex:1;min-width:0}
 .card-actions{display:flex;gap:8px;align-items:center;flex-shrink:0}
@@ -398,11 +402,15 @@ table tr:hover td{background:#f8fafc}
   .brand{justify-content:center}
   .nav-item{justify-content:center}
   .main{padding:20px 18px 50px}
-  .board,.meal-grid,.charts-row,.work-top{grid-template-columns:1fr}
+  .board,.meal-grid,.charts-row,.work-top,.dash-grid{grid-template-columns:1fr}
   /* 手机端：工具按钮放在侧边栏底部，竖排图标 */
   .sidebar-foot{position:static;flex-direction:column;gap:2px;padding:6px 0 0;border-top:1px solid var(--line);margin-top:auto;box-shadow:none;background:transparent;align-items:center}
   .sidebar-foot .btn-ghost{width:44px;height:38px;padding:0;font-size:0;display:flex;align-items:center;justify-content:center;border-radius:8px}
   .sidebar-foot .btn-ghost:hover{background:rgba(99,102,241,.08)}
+  .dash-tile{min-width:0}
+  .dh-cal{min-width:0}
+  .cal-ring-wrap{justify-content:center}
+  .cal-ring-info{min-width:0;flex-basis:100%}
 }
 
 /* ===== 豆包快速粘贴卡片 ===== */
