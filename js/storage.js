@@ -72,6 +72,13 @@ const Store = {
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function nowTime() { const d = new Date(); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+/* 7天前的日期字符串（用于本周汇总） */
+function weekAgoStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - 6);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 function fmtDate(d) { return d ? d.slice(5) : '--'; }
 function daysBetween(a, b) {
   const da = new Date(a), db = b ? new Date(b) : new Date();
