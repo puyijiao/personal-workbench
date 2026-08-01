@@ -424,3 +424,38 @@ table tr:hover td{background:#f8fafc}
   .qp-table,.qp-tr{grid-template-columns:1.5fr 1fr 1fr;font-size:11px}
   .qp-table .qp-th:nth-child(n+4),.qp-tr .qp-td:nth-child(n+4){display:none}
 }
+
+/* ===== 饮食历史回顾 ===== */
+.dh-week{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.dh-week-item{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 6px;text-align:center}
+.dwi-num{font-size:18px;font-weight:800;color:var(--c-diet)}
+.dwi-label{font-size:11px;color:var(--ink-soft);margin-top:2px}
+.dh-cal-head{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px}
+.dh-nav{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:18px;line-height:1;cursor:pointer}
+.dh-nav:hover{background:rgba(99,102,241,.06)}
+.dh-cal-title{font-weight:700;font-size:14px}
+.dh-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+.dh-weekdays span{text-align:center;font-size:11px;color:var(--ink-soft);padding:4px 0}
+.dh-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dh-cell{aspect-ratio:1;border-radius:8px;background:#f8fafc;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;gap:1px;cursor:pointer;position:relative;border:2px solid transparent}
+.dh-cell small{font-size:9px;color:var(--ink-soft)}
+.dh-cell.empty{cursor:default;background:transparent}
+.dh-cell.ok{background:rgba(34,197,94,.12);color:#16a34a;font-weight:600}
+.dh-cell.ok small{color:#16a34a}
+.dh-cell.over{background:rgba(239,68,68,.12);color:#dc2626;font-weight:600}
+.dh-cell.over small{color:#dc2626}
+.dh-cell.sel{border-color:var(--c-diet)}
+.dh-cell.tday{box-shadow:inset 0 0 0 2px var(--c-diet)}
+.dh-legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-soft);margin:10px 0 14px;flex-wrap:wrap}
+.dh-legend .dot{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:2px}
+.dh-legend .dot.ok{background:rgba(34,197,94,.35)}
+.dh-legend .dot.over{background:rgba(239,68,68,.35)}
+.dh-legend .dot.none{background:#e5e7eb}
+.dh-detail{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.dh-detail.empty{text-align:center;color:var(--ink-soft);font-size:13px}
+.dh-detail-head{font-weight:700;font-size:14px;margin-bottom:10px}
+.dh-meal{margin-bottom:10px}
+.dh-meal-name{font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:4px}
+.dh-item{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px dashed var(--line)}
+.dh-item:last-child{border-bottom:none}
+.dh-item b{color:var(--c-diet)}
