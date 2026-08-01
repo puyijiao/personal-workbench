@@ -62,6 +62,8 @@ document.addEventListener('click', function (e) {
       case 'del-food': Diet.delFood(id); break;
       case 'del-food-lib': Diet.delFoodLibItem(id); break;
       case 'edit-diet-goal': Diet.editGoal(); break;
+      case 'diet-hist-prev': Diet.histNav(-1); break;
+      case 'diet-hist-next': Diet.histNav(1); break;
       /* 体重体脂 */
       case 'add-body': Body.add(); break;
       case 'del-body': Body.del(id); break;
@@ -550,7 +552,112 @@ function matchFoodInDb(name) {
 }
 
 var Diet = {
-  render: function () { this.renderSummary(); this.renderMeals(); this.renderFoodLib(); this.mountQuickPaste(); },
+  render: function () { this.renderSummary(); this.renderMeals(); this.renderFoodLib(); this.renderHistory(); this.mountQuickPaste(); },
+  /* 历史回顾：日历 + 周汇总 + 选中日期明细 */
+  _histYear: null, _histMonth: null, _histSel: null,
+  renderHistory: function () {
+    var box = $('#dietHistory');
+    if (!box) return;
+    var now = new Date();
+    if (this._histYear === null) { this._histYear = now.getFullYear(); this._histMonth = now.getMonth() + 1; this._histSel = today(); }
+    var y = this._histYear, m = this._histMonth, sel = this._histSel;
+    var all = Store.get('diet', []);
+    var g = Store.get('dietGoals', { cal: 1150, protein: 60, fat: 35, carb: 145, fiber: 25 });
+
+    /* ---- 本周汇总 ---- */
+    var weekStats = this._weekStats(all, g);
+
+    /* ---- 日历 ---- */
+    var firstDay = new Date(y, m - 1, 1).getDay();
+    var daysInMonth = new Date(y, m, 0).getDate();
+    var dayCal = {};
+    all.forEach(function (d) { dayCal[d.date] = (dayCal[d.date] || 0) + (+d.energy || 0); });
+    var cells = '';
+    for (var i = 0; i < firstDay; i++) cells += '<div class="dh-cell empty"></div>';
+    for (var d = 1; d <= daysInMonth; d++) {
+      var dateStr = y + '-' + pad2(m) + '-' + pad2(d);
+      var cal = dayCal[dateStr];
+      var cls = 'dh-cell';
+      if (cal !== undefined) {
+        cls += cal > g.cal ? ' over' : ' ok';
+      }
+      if (dateStr === sel) cls += ' sel';
+      if (dateStr === today()) cls += ' tday';
+      cells += '<div class="' + cls + '" data-date="' + dateStr + '">' + d +
+        (cal !== undefined ? '<small>' + Math.round(cal) + '</small>' : '') + '</div>';
+    }
+
+    /* ---- 选中日期明细 ---- */
+    var selList = all.filter(function (x) { return x.date === sel; });
+    var selCal = selList.reduce(function (s, x) { return s + (+x.energy || 0); }, 0);
+    var detailHtml = '';
+    if (selList.length) {
+      detailHtml = '<div class="dh-detail"><div class="dh-detail-head">' + sel + ' · 共 ' + Math.round(selCal) + ' kcal</div>';
+      var meals = { breakfast: [], lunch: [], dinner: [], snack: [] };
+      selList.forEach(function (x) { (meals[x.meal] || (meals[x.meal] = [])).push(x); });
+      Object.keys(meals).forEach(function (mk) {
+        if (!meals[mk].length) return;
+        var mName = { breakfast: '🌅 早餐', lunch: '☀️ 午餐', dinner: '🌙 晚餐', snack: '🍪 加餐' }[mk] || mk;
+        detailHtml += '<div class="dh-meal"><div class="dh-meal-name">' + mName + '</div>';
+        meals[mk].forEach(function (x) {
+          detailHtml += '<div class="dh-item"><span>' + escape(x.name) + ' ' + x.amount + 'g</span><b>' + Math.round(x.energy) + ' kcal</b></div>';
+        });
+        detailHtml += '</div>';
+      });
+      detailHtml += '</div>';
+    } else {
+      detailHtml = '<div class="dh-detail empty">📭 ' + sel + ' 没有饮食记录</div>';
+    }
+
+    var html =
+      '<div class="dh-week">' +
+        '<div class="dh-week-item"><div class="dwi-num">' + weekStats.days + '</div><div class="dwi-label">记录天数</div></div>' +
+        '<div class="dh-week-item"><div class="dwi-num">' + Math.round(weekStats.avg) + '</div><div class="dwi-label">日均 kcal</div></div>' +
+        '<div class="dh-week-item"><div class="dwi-num">' + weekStats.overDays + '</div><div class="dwi-label">超标天数</div></div>' +
+        '<div class="dh-week-item"><div class="dwi-num">' + weekStats.goodDays + '</div><div class="dwi-label">达标天数</div></div>' +
+      '</div>' +
+      '<div class="dh-cal-head">' +
+        '<button class="dh-nav" data-action="diet-hist-prev" title="上个月">‹</button>' +
+        '<span class="dh-cal-title">' + y + '年' + m + '月</span>' +
+        '<button class="dh-nav" data-action="diet-hist-next" title="下个月">›</button>' +
+      '</div>' +
+      '<div class="dh-weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>' +
+      '<div class="dh-cal">' + cells + '</div>' +
+      '<div class="dh-legend"><span class="dot ok"></span>达标 <span class="dot over"></span>超标 <span class="dot none"></span>未记录</div>' +
+      detailHtml;
+    box.innerHTML = html;
+
+    /* 绑定日历点击 */
+    box.querySelectorAll('.dh-cell[data-date]').forEach(function (c) {
+      c.onclick = function () { self._histSel = c.dataset.date; self.renderHistory(); };
+    });
+  },
+  _weekStats: function (all, g) {
+    var res = { days: 0, avg: 0, overDays: 0, goodDays: 0 };
+    var dayMap = {};
+    all.forEach(function (x) {
+      var d = x.date;
+      if (!d || d < weekAgoStr()) return;
+      dayMap[d] = (dayMap[d] || 0) + (+x.energy || 0);
+    });
+    var dates = Object.keys(dayMap);
+    res.days = dates.length;
+    var sum = 0;
+    dates.forEach(function (d) {
+      sum += dayMap[d];
+      if (dayMap[d] > g.cal) res.overDays++; else res.goodDays++;
+    });
+    res.avg = dates.length ? sum / dates.length : 0;
+    return res;
+  },
+  histNav: function (dir) {
+    var m = this._histMonth + dir;
+    var y = this._histYear;
+    if (m < 1) { m = 12; y--; }
+    if (m > 12) { m = 1; y++; }
+    this._histYear = y; this._histMonth = m;
+    this.renderHistory();
+  },
   editGoal: function () {
     var self = this;
     var g = Store.get('dietGoals', { cal: 1150, protein: 60, fat: 35, carb: 145, fiber: 25 });
