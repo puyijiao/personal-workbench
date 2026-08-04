@@ -474,6 +474,19 @@ table tr:hover td{background:#f8fafc}
 .dh-detail{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;max-width:100%;overflow:hidden}
 .dh-detail.empty{text-align:center;color:var(--ink-soft);font-size:13px}
 .dh-detail-head{font-weight:700;font-size:14px;margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 当日营养分析 */
+.dh-nut{background:#f8fafc;border-radius:10px;padding:10px 12px;margin-bottom:12px}
+.dh-nut-row{display:grid;grid-template-columns:60px 1fr 80px;align-items:center;gap:8px;padding:4px 0;font-size:12px}
+.dn-label{color:var(--ink-soft);font-weight:600}
+.dn-nums b{font-size:14px}
+.dh-nut-row.ok .dn-nums b{color:#16a34a}
+.dh-nut-row.low .dn-nums b{color:#3b82f6}
+.dh-nut-row.over .dn-nums b{color:#dc2626}
+.dn-bar{height:6px;background:#e5e7eb;border-radius:6px;overflow:hidden}
+.dn-bar i{display:block;height:100%;border-radius:6px}
+.dh-nut-row.ok .dn-bar i{background:#22c55e}
+.dh-nut-row.low .dn-bar i{background:#3b82f6}
+.dh-nut-row.over .dn-bar i{background:#ef4444}
 .dh-meal{margin-bottom:10px;max-width:100%;overflow:hidden}
 .dh-meal-name{font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:4px}
 .dh-item{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:3px 0;border-bottom:1px dashed var(--line);max-width:100%}
