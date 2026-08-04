@@ -594,7 +594,33 @@ var Diet = {
     var selCal = selList.reduce(function (s, x) { return s + (+x.energy || 0); }, 0);
     var detailHtml = '';
     if (selList.length) {
+      /* 当日营养分析（纯数字对比，不判断达标与否） */
+      var nut = { energy: 0, protein: 0, fat: 0, carb: 0, fiber: 0 };
+      selList.forEach(function (x) {
+        nut.energy += +x.energy || 0; nut.protein += +x.protein || 0; nut.fat += +x.fat || 0;
+        nut.carb += +x.carb || 0; nut.fiber += +x.fiber || 0;
+      });
+      var g2 = g;
+      var nutRows = [
+        { label: '热量', val: nut.energy, goal: g2.cal, unit: 'kcal' },
+        { label: '蛋白质', val: nut.protein, goal: g2.protein, unit: 'g' },
+        { label: '脂肪', val: nut.fat, goal: g2.fat, unit: 'g' },
+        { label: '碳水', val: nut.carb, goal: g2.carb, unit: 'g' },
+        { label: '膳食纤维', val: nut.fiber, goal: g2.fiber, unit: 'g' }
+      ];
       detailHtml = '<div class="dh-detail"><div class="dh-detail-head">' + sel + ' · 共 ' + Math.round(selCal) + ' kcal</div>';
+      detailHtml += '<div class="dh-nut">';
+      nutRows.forEach(function (r) {
+        /* 颜色仅辅助：低=蓝 正常=绿 超=红（热量/脂肪超目标红，其余超目标也红） */
+        var ratio = r.goal ? r.val / r.goal : 0;
+        var cls = ratio >= 0.85 && ratio <= 1.05 ? 'ok' : (ratio < 0.85 ? 'low' : 'over');
+        detailHtml += '<div class="dh-nut-row ' + cls + '">' +
+          '<span class="dn-label">' + r.label + '</span>' +
+          '<span class="dn-nums"><b>' + Math.round(r.val) + '</b> / ' + r.goal + ' ' + r.unit + '</span>' +
+          '<span class="dn-bar"><i style="width:' + Math.min(ratio * 100, 100) + '%"></i></span>' +
+        '</div>';
+      });
+      detailHtml += '</div>';
       var meals = { breakfast: [], lunch: [], dinner: [], snack: [] };
       selList.forEach(function (x) { (meals[x.meal] || (meals[x.meal] = [])).push(x); });
       Object.keys(meals).forEach(function (mk) {
