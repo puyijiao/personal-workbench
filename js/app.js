@@ -993,11 +993,35 @@ var Diet = {
   },
   renderFoodLib: function () {
     var lib = Store.get('foodLib', []);
-    $('#foodLibList').innerHTML = lib.length ? lib.map(function (f) {
+    if (!lib.length) {
+      $('#foodLibList').innerHTML = '<div class="empty-mini">还没有自定义食材，拍照录入时勾选"保存到食材库"即可加入</div>';
+      return;
+    }
+    var cats = Store.get('foodLibCategories', []);
+    var card = function (f) {
       var kj = f.energyKj != null ? f.energyKj : Math.round(f.energy * 4.184);
       return '<div class="note-card"><button class="nc-edit" data-action="edit-food-lib" data-id="' + f.id + '" title="修改">✎</button><button class="nc-del" data-action="del-food-lib" data-id="' + f.id + '" title="删除">✕</button><div class="nc-body" style="font-weight:600">' + escape(f.name) + '</div>' +
         '<div class="nc-date" style="font-size:11px">每100g：' + kj + 'kJ / ' + f.energy + 'kcal · 蛋' + (f.protein || 0) + 'g 脂' + (f.fat || 0) + 'g 碳' + (f.carb || 0) + 'g 纤' + (f.fiber || 0) + 'g 钠' + (f.sodium || 0) + 'mg</div></div>';
-    }).join('') : '<div class="empty-mini">还没有自定义食材，拍照录入时勾选"保存到食材库"即可加入</div>';
+    };
+    /* 按分类分组：先显示有食材的分类，最后是"未分类" */
+    var groups = [];
+    cats.forEach(function (cat) {
+      var items = lib.filter(function (f) { return (f.category || '未分类') === cat; });
+      if (items.length) groups.push({ name: cat, items: items });
+    });
+    var uncat = lib.filter(function (f) { return !f.category || cats.indexOf(f.category) === -1; });
+    if (uncat.length) groups.push({ name: '📦 未分类', items: uncat });
+    $('#foodLibList').innerHTML = groups.map(function (g) {
+      return '<div class="fl-group"><div class="fl-group-head">' + escape(g.name) + ' <span class="fl-count">' + g.items.length + '</span></div>' +
+        '<div class="fl-group-items">' + g.items.map(card).join('') + '</div></div>';
+    }).join('');
+  },
+  categoryOptions: function (cur) {
+    var cats = Store.get('foodLibCategories', []);
+    var opts = cats.map(function (c) { return '<option value="' + escape(c) + '" ' + (c === cur ? 'selected' : '') + '>' + escape(c) + '</option>'; });
+    if (cur && cats.indexOf(cur) === -1) opts.unshift('<option value="' + escape(cur) + '" selected>' + escape(cur) + '</option>');
+    opts.push('<option value="📦 未分类" ' + (!cur || cur === '未分类' ? 'selected' : '') + '>📦 未分类</option>');
+    return opts.join('');
   },
   editFoodLibItem: function (editId) {
     var self = this;
@@ -1019,7 +1043,8 @@ var Diet = {
       '<div class="field"><label>食材名称</label><input id="fl-name" placeholder="如：自制杂粮馒头" value="' + escape(pre.name || '') + '" /></div>' +
       '<div class="hint" style="margin-bottom:10px">填写每100g的营养数据（参照包装营养成分表）</div>' +
       '<div class="field-row-3"><div class="field"><label>能量(kJ)</label><input type="number" step="0.1" id="fl-kj" value="' + (preKj || '') + '" placeholder="如：1672" /><div class="hint" id="fl-kj-hint" style="margin-top:4px;font-size:11px;color:var(--c-diet);font-weight:600"></div></div><div class="field"><label>蛋白质(g)</label><input type="number" step="0.1" id="fl-protein" value="' + (pre.protein || '') + '" /></div><div class="field"><label>脂肪(g)</label><input type="number" step="0.1" id="fl-fat" value="' + (pre.fat || '') + '" /></div></div>' +
-      '<div class="field-row-3"><div class="field"><label>碳水(g)</label><input type="number" step="0.1" id="fl-carb" value="' + (pre.carb || '') + '" /></div><div class="field"><label>膳食纤维(g)</label><input type="number" step="0.1" id="fl-fiber" value="' + (pre.fiber || '') + '" /></div><div class="field"><label>钠(mg)</label><input type="number" step="0.1" id="fl-sodium" value="' + (pre.sodium || '') + '" /></div></div>',
+      '<div class="field-row-3"><div class="field"><label>碳水(g)</label><input type="number" step="0.1" id="fl-carb" value="' + (pre.carb || '') + '" /></div><div class="field"><label>膳食纤维(g)</label><input type="number" step="0.1" id="fl-fiber" value="' + (pre.fiber || '') + '" /></div><div class="field"><label>钠(mg)</label><input type="number" step="0.1" id="fl-sodium" value="' + (pre.sodium || '') + '" /></div></div>' +
+      '<div class="field"><label>分类</label><select id="fl-category">' + this.categoryOptions(pre.category) + '</select><input id="fl-category-new" placeholder="或输入新分类名，如：饮品" style="margin-top:6px" /></div>',
       '<button class="btn" data-action="modal-cancel">取消</button><button class="btn primary" id="fl-save">' + btnText + '</button>',
       function () {
         /* KJ → kcal 实时换算显示 */
@@ -1070,6 +1095,14 @@ var Diet = {
           if (!name) { toast('请填写食材名称'); return; }
           var kj = +$('#fl-kj').value || 0;
           var kcal = kj > 0 ? kjToKcal(kj) : 0;
+          /* 分类：优先取下拉框选择；若输入了新分类名则用它并加入分类库 */
+          var cat = ($('#fl-category').value || '').trim();
+          var newCat = ($('#fl-category-new').value || '').trim();
+          if (newCat) cat = newCat;
+          if (cat && cat !== '📦 未分类' && cat !== '未分类') {
+            var cats = Store.get('foodLibCategories', []);
+            if (cats.indexOf(cat) === -1) { cats.push(cat); Store.set('foodLibCategories', cats); }
+          }
           var lib = Store.get('foodLib', []);
           if (editing) {
             /* 修改模式：更新已有记录 */
@@ -1077,6 +1110,7 @@ var Diet = {
             if (!item) { toast('食材不存在'); return; }
             if (name !== item.name && lib.some(function (f) { return f.name === name; })) { toast('已有同名食材'); return; }
             item.name = name;
+            item.category = cat;
             item.energy = kcal;
             item.energyKj = kj;
             item.protein = +$('#fl-protein').value || 0;
@@ -1088,7 +1122,7 @@ var Diet = {
           } else {
             /* 新增模式 */
             if (lib.some(function (f) { return f.name === name; })) { toast('已有同名食材'); return; }
-            lib.push({ id: uid(), name: name, base: 100, energy: kcal, energyKj: kj, protein: +$('#fl-protein').value || 0, fat: +$('#fl-fat').value || 0, carb: +$('#fl-carb').value || 0, fiber: +$('#fl-fiber').value || 0, sodium: +$('#fl-sodium').value || 0 });
+            lib.push({ id: uid(), name: name, base: 100, energy: kcal, energyKj: kj, protein: +$('#fl-protein').value || 0, fat: +$('#fl-fat').value || 0, carb: +$('#fl-carb').value || 0, fiber: +$('#fl-fiber').value || 0, sodium: +$('#fl-sodium').value || 0, category: cat });
             Store.set('foodLib', lib); closeModal(); self.renderFoodLib(); toast('已加入食材库');
           }
         };
