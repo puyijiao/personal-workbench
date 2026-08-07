@@ -55,6 +55,7 @@ const Store = {
       workDesigns: [],
       workGoal: 26,
       foodLib: [],
+      foodLibCategories: ['🍗 蛋白质', '🌾 碳水', '🥑 优质脂肪', '🥦 膳食纤维', '🍰 甜点零食'],
       sportMiniItems: [{ id: uid(), name: '踮脚尖', target: 30 }],
       sportMiniLogs: [],
       bandData: [],
