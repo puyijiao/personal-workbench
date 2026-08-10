@@ -1301,10 +1301,29 @@ var Body = {
       '<div class="field"><label>测量日期</label><input type="date" id="bd-date" value="' + today() + '" /></div>' +
       '<div class="field-row-3"><div class="field"><label>体重(kg)</label><input type="number" step="0.1" id="bd-weight" value="' + (last.weight || '') + '" /></div><div class="field"><label>体脂率(%)</label><input type="number" step="0.1" id="bd-bodyFat" value="' + (last.bodyFat || '') + '" /></div><div class="field"><label>BMI</label><input type="number" step="0.1" id="bd-bmi" value="' + (last.bmi || '') + '" /></div></div>' +
       '<div class="field-row-3"><div class="field"><label>肌肉量(kg)</label><input type="number" step="0.1" id="bd-muscle" value="' + (last.muscle || '') + '" /></div><div class="field"><label>骨量(kg)</label><input type="number" step="0.1" id="bd-bone" value="' + (last.bone || '') + '" /></div><div class="field"><label>水分率(%)</label><input type="number" step="0.1" id="bd-water" value="' + (last.water || '') + '" /></div></div>' +
-      '<div class="field"><label>基础代谢(kcal)</label><input type="number" id="bd-bmr" value="' + (last.bmr || '') + '" /></div>' +
+      '<div class="field"><label>基础代谢(kcal)</label><div style="display:flex;gap:8px"><input type="number" id="bd-bmr" value="' + (last.bmr || '') + '" style="flex:1" /><button class="btn sm" id="bd-bmr-auto" title="用 Katch-McArdle 公式自动计算">⚙ 自动算</button></div><div class="hint" id="bd-bmr-hint" style="margin-top:4px;font-size:11px;color:var(--c-body);font-weight:600"></div></div>' +
       '<div class="hint">也可对照体脂秤显示的数据逐项手动填入，留空的项会显示为"-"</div>',
       '<button class="btn" data-action="modal-cancel">取消</button><button class="btn primary" id="bd-save">保存</button>',
       function () {
+        /* 基础代谢自动计算（Katch-McArdle 公式：BMR = 370 + 21.6 × 去脂体重） */
+        var wInput = $('#bd-weight'), bfInput = $('#bd-bodyFat'), bmrInput = $('#bd-bmr'), bmrHint = $('#bd-bmr-hint');
+        function calcBmrNow() {
+          var w = +wInput.value || 0, bf = +bfInput.value || 0;
+          if (w <= 0 || bf <= 0) { bmrHint.textContent = '需要体重和体脂率才能自动算'; return; }
+          var lbm = w * (1 - bf / 100);
+          var bmr = Math.round(370 + 21.6 * lbm);
+          bmrHint.textContent = '按 Katch-McArdle 公式估算：' + bmr + ' kcal（点击"自动算"填入）';
+          bmrInput.dataset.calc = bmr;
+        }
+        wInput.addEventListener('input', calcBmrNow);
+        bfInput.addEventListener('input', calcBmrNow);
+        $('#bd-bmr-auto').onclick = function () {
+          var v = +bmrInput.dataset.calc || 0;
+          if (v <= 0) { calcBmrNow(); v = +bmrInput.dataset.calc || 0; }
+          if (v > 0) { bmrInput.value = v; toast('已按 Katch-McArdle 公式自动计算'); }
+          else toast('请先填写体重和体脂率');
+        };
+        calcBmrNow();
         /* OCR 拍照识别体脂秤 */
         $('#bd-ocr-btn').onclick = function () { $('#bd-ocr-img').click(); };
         $('#bd-ocr-img').onchange = function (e) {
