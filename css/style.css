@@ -195,6 +195,13 @@ html,body{overflow-x:hidden;max-width:100%}
 .body-card .bc-num small{font-size:12px;color:var(--ink-soft)}
 .body-card .bc-label{font-size:12px;color:var(--ink-soft);margin-top:2px}
 .body-card .bc-delta{font-size:11px;margin-top:4px}
+/* 体测日期标注 */
+.body-date-tag{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.bc-tag{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}
+.bc-tag.today{background:rgba(34,197,94,.12);color:#16a34a}
+.bc-tag.old{background:rgba(245,158,11,.12);color:#d97706}
+.bc-tag.none{background:#f1f5f9;color:var(--ink-soft)}
+.bc-note{font-size:11px;color:var(--ink-soft)}
 .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
 .chart-card{padding:18px}
 .chart-card.tall{display:flex;flex-direction:column}
