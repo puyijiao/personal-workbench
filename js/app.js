@@ -153,7 +153,7 @@ var Dashboard = {
 
     var tiles = [
       { ic: '🍱', tag: '今日饮食', num: cal, unit: 'kcal', sub: '目标 ' + dietGoals.cal + 'kcal · ' + diet.length + ' 项', c: 'var(--c-diet)', bar: Math.min(cal / dietGoals.cal * 100, 100), target: 'diet' },
-      { ic: '⚖️', tag: '最新体重', num: lastBody ? lastBody.weight : '--', unit: 'kg', sub: lastBody ? '体脂率 ' + (lastBody.bodyFat || '--') + '%' : '暂无记录', c: 'var(--c-body)', bar: lastBody ? Math.min(lastBody.bodyFat || 0, 100) : 0, target: 'body' },
+      { ic: '⚖️', tag: '最新体重', num: lastBody ? lastBody.weight : '--', unit: 'kg', sub: lastBody ? (lastBody.date === today() ? '今日 · 体脂率 ' + (lastBody.bodyFat || '--') + '%' : '上次 ' + lastBody.date.slice(5) + ' · 体脂率 ' + (lastBody.bodyFat || '--') + '%') : '暂无记录', c: 'var(--c-body)', bar: lastBody ? Math.min(lastBody.bodyFat || 0, 100) : 0, target: 'body' },
       { ic: '👗', tag: '工作任务', num: doingCnt, unit: '进行中', sub: todoCnt + ' 待办', c: 'var(--c-work)', bar: tasks.length ? (tasks.filter(function (x) { return x.status === 'done'; }).length / tasks.length * 100) : 0, target: 'work' },
       { ic: '📚', tag: '学习进度', num: studyDone + '/' + (studyTotal || 0), unit: '', sub: examDays !== null ? '距考试 ' + examDays + '天' : '未设考试日期', c: 'var(--c-study)', bar: studyTotal ? (studyDone / studyTotal * 100) : 0, target: 'study' },
       { ic: '🎓', tag: year + '年课时', num: courseHours, unit: '课时', sub: '目标 120 课时', c: 'var(--c-title)', bar: Math.min(courseHours / 120 * 100, 100), target: 'title' },
@@ -1242,6 +1242,9 @@ var Body = {
     var data = Store.get('bodyData', []);
     var last = data[data.length - 1];
     var prev = data[data.length - 2];
+    /* 判断上次记录是否今天：不是的话显示日期标注，避免误认为今天已填 */
+    var lastIsToday = last && last.date === today();
+    var lastDateTag = last ? (lastIsToday ? '<span class="bc-tag today">今日</span>' : '<span class="bc-tag old">上次 ' + last.date.slice(5) + '</span>') : '<span class="bc-tag none">暂无记录</span>';
     var cards = [
       { label: '体重', val: last ? last.weight : null, unit: 'kg', delta: this.delta(last ? last.weight : null, prev ? prev.weight : null) },
       { label: '体脂率', val: last ? last.bodyFat : null, unit: '%', delta: this.delta(last ? last.bodyFat : null, prev ? prev.bodyFat : null) },
@@ -1251,7 +1254,7 @@ var Body = {
       { label: '水分率', val: last ? last.water : null, unit: '%', delta: this.delta(last ? last.water : null, prev ? prev.water : null) },
       { label: '基础代谢', val: last ? last.bmr : null, unit: 'kcal', delta: this.delta(last ? last.bmr : null, prev ? prev.bmr : null) }
     ];
-    $('#bodyCards').innerHTML = cards.map(function (c) {
+    $('#bodyCards').innerHTML = '<div class="body-date-tag">' + lastDateTag + (last ? '<span class="bc-note">数据更新：' + last.date + '</span>' : '') + '</div>' + cards.map(function (c) {
       return '<div class="body-card"><div class="bc-num">' + (c.val != null ? c.val : '--') + '<small>' + c.unit + '</small></div><div class="bc-label">' + c.label + '</div><div class="bc-delta">' + c.delta + '</div></div>';
     }).join('') || '<div class="empty-mini">暂无体测数据，点击右上角录入</div>';
     this.renderTable(data);
