@@ -99,6 +99,10 @@
           </div>
         </div>
         <div class="page-cards" data-sortable data-page="diet">
+          <div class="card" data-card="dietAdviceCard">
+            <div class="card-head"><h3 class="card-title">💡 今日饮食建议</h3><div class="card-actions"></div></div>
+            <div class="card-content" id="dietAdvice"></div>
+          </div>
           <div class="card" data-card="dietQuickPasteCard">
             <div class="card-head"><h3 class="card-title">⚡ 豆包快速粘贴</h3><div class="card-actions"><button class="btn sm" data-action="copy-doubao-prompt">📋 复制给豆包的指令</button><button class="btn sm" data-action="toggle-paste-help" id="pasteHelpBtn">使用说明</button></div></div>
             <div class="card-content">
@@ -256,6 +260,31 @@
             <div class="card-content"><div class="calendar" id="sportCalendar"></div></div>
           </div>
           <div class="add-card-bar"><button class="add-card-btn" data-action="add-card" data-page="sport">＋ 新增空白卡片</button></div>
+        </div>
+      </section>
+
+      <!-- 健康档案 -->
+      <section class="page" id="page-health" data-page="health">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">🏥 健康档案</h1>
+            <p class="page-desc">登记你的长期与短期身体状况，智能调整每日饮食建议</p>
+          </div>
+        </div>
+        <div class="page-cards" data-sortable data-page="health">
+          <div class="card" data-card="healthAdviceCard">
+            <div class="card-head"><h3 class="card-title">💡 今日饮食建议</h3><div class="card-actions"></div></div>
+            <div class="card-content" id="healthAdvice"></div>
+          </div>
+          <div class="card" data-card="healthLongCard">
+            <div class="card-head"><h3 class="card-title">📌 长期状况</h3><div class="card-actions"><button class="btn sm" data-action="add-health-long">＋ 添加</button></div></div>
+            <div class="card-content" id="healthLongList"></div>
+          </div>
+          <div class="card" data-card="healthShortCard">
+            <div class="card-head"><h3 class="card-title">⏳ 短期状况</h3><div class="card-actions"><button class="btn sm" data-action="add-health-short">＋ 添加</button></div></div>
+            <div class="card-content" id="healthShortList"></div>
+          </div>
+          <div class="add-card-bar"><button class="add-card-btn" data-action="add-card" data-page="health">＋ 新增空白卡片</button></div>
         </div>
       </section>
     </main>
