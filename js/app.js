@@ -2106,6 +2106,10 @@ var Health = {
         return food.indexOf(w) !== -1 || w.indexOf(food) !== -1;
       });
     };
+    /* 我的习惯里常吃的：从 good 里移除（已在喝/已常吃，不再推荐） */
+    if (habitNames.length) {
+      allGood = allGood.filter(function (g) { return !habitNames.some(function (hn) { return matched(hn, [g]); }); });
+    }
 
     var buyGood = [];   /* 🟢 值得多买：对你好且最近吃过 */
     var badEaten = [];  /* 🔴 忌口但最近吃过了 */
