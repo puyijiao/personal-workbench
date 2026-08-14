@@ -533,3 +533,6 @@ table tr:hover td{background:#f8fafc}
 .al-text{flex:1}
 .ex-item{display:block;padding:4px 0;font-size:13px}
 .field-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.advice-sec-title{font-size:13px;font-weight:700;color:var(--ink);margin:10px 0 4px;padding-top:10px;border-top:2px solid var(--line)}
+.advice-line.good .al-text b{color:#16a34a}
+.advice-line.warn .al-text b{color:#dc2626}
