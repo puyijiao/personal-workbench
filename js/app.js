@@ -34,6 +34,7 @@ document.addEventListener('click', function (e) {
       case 'import-data': $('#importInput').click(); break;
       case 'import-clipboard': importFromClipboard(); break;
       case 'toggle-fullscreen': toggleFullscreen(); break;
+      case 'toggle-sync': Sync.open(); break;
       case 'rename-workbench': renameWorkbench(); break;
       /* 本职工作 */
       case 'add-task': Work.editTask(); break;
@@ -1813,6 +1814,117 @@ function exportData() {
   a.click();
   toast('已导出备份（含自定义布局）');
 }
+
+/* ---------- 同步助手（方案D：生成/粘贴同步码，零成本） ---------- */
+var Sync = {
+  open: function () {
+    openModal('🔗 数据同步助手',
+      '<div class="seg" id="syncMode">' +
+        '<button class="active" data-mode="gen">📤 生成同步码</button>' +
+        '<button data-mode="paste">📥 粘贴同步码</button>' +
+      '</div>' +
+      '<div id="sync-gen">' +
+        '<div class="hint" style="margin-bottom:8px">点「生成」得到一串同步码，复制后发到微信「文件传输助手」，再到另一台设备粘贴</div>' +
+        '<button class="btn primary" id="sync-gen-btn" style="width:100%;margin-bottom:8px">🔗 生成同步码</button>' +
+        '<textarea id="sync-code-out" readonly style="width:100%;min-height:120px;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:11px;font-family:monospace;resize:vertical" placeholder="同步码会显示在这里…"></textarea>' +
+        '<button class="btn" id="sync-copy-btn" style="width:100%;margin-top:8px">📋 复制同步码</button>' +
+      '</div>' +
+      '<div id="sync-paste" style="display:none">' +
+        '<div class="hint" style="margin-bottom:8px">把另一台设备生成的同步码粘贴到下面，点「合并同步」——两边的记录都会保留，不会丢</div>' +
+        '<textarea id="sync-code-in" style="width:100%;min-height:120px;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:11px;font-family:monospace;resize:vertical" placeholder="粘贴同步码…"></textarea>' +
+        '<button class="btn primary" id="sync-merge-btn" style="width:100%;margin-top:8px">🔀 合并同步</button>' +
+      '</div>',
+      '<button class="btn" data-action="modal-cancel">关闭</button>',
+      function () {
+        /* 模式切换 */
+        $('#syncMode').querySelectorAll('button').forEach(function (b) {
+          b.onclick = function () {
+            $('#syncMode').querySelectorAll('button').forEach(function (x) { x.classList.remove('active'); });
+            b.classList.add('active');
+            $('#sync-gen').style.display = b.dataset.mode === 'gen' ? '' : 'none';
+            $('#sync-paste').style.display = b.dataset.mode === 'paste' ? '' : 'none';
+          };
+        });
+        /* 生成 */
+        $('#sync-gen-btn').onclick = function () {
+          var code = Sync.encode(Store.load());
+          $('#sync-code-out').value = code;
+          toast('已生成，共 ' + code.length + ' 字符');
+        };
+        $('#sync-copy-btn').onclick = function () {
+          var ta = $('#sync-code-out');
+          if (!ta.value) { toast('请先生成同步码'); return; }
+          ta.select(); document.execCommand('copy');
+          toast('✅ 已复制，去微信发给另一台设备吧');
+        };
+        /* 合并 */
+        $('#sync-merge-btn').onclick = function () {
+          var code = $('#sync-code-in').value.trim();
+          if (!code) { toast('请先粘贴同步码'); return; }
+          var ok = Sync.merge(code);
+          if (ok) { closeModal(); toast('✅ 同步完成！'); setTimeout(function () { location.reload(); }, 800); }
+        };
+      }
+    );
+  },
+  /* 编码：数据 → JSON → 压缩 → 短码 */
+  encode: function (data) {
+    var json = JSON.stringify({ v: 2, ts: Date.now(), data: data });
+    if (typeof LZString !== 'undefined' && LZString.compressToEncodedURIComponent) {
+      return 'LZ.' + LZString.compressToEncodedURIComponent(json);
+    }
+    return 'B64.' + btoa(unescape(encodeURIComponent(json)));
+  },
+  /* 解码：短码 → 数据对象 */
+  decode: function (code) {
+    code = code.trim();
+    if (code.indexOf('LZ.') === 0) {
+      return JSON.parse(LZString.decompressFromEncodedURIComponent(code.slice(3)));
+    }
+    if (code.indexOf('B64.') === 0) {
+      return JSON.parse(decodeURIComponent(escape(atob(code.slice(4)))));
+    }
+    return JSON.parse(code);
+  },
+  /* 合并：把同步码里的数据合并进本地（记录保留、不丢任何一条） */
+  merge: function (code) {
+    try {
+      var obj = this.decode(code);
+      if (!obj || !obj.data) { toast('同步码无效'); return false; }
+      var cur = Store.load();
+      var imp = obj.data;
+      var merged = 0, skipped = 0;
+      for (var key in imp) {
+        if (cur[key] === undefined) {
+          cur[key] = imp[key]; merged++;
+        } else if (Array.isArray(cur[key]) && Array.isArray(imp[key])) {
+          var existingIds = {};
+          cur[key].forEach(function (item) { if (item && item.id) existingIds[item.id] = true; });
+          imp[key].forEach(function (item) {
+            if (item && item.id && !existingIds[item.id]) {
+              cur[key].push(item);
+              existingIds[item.id] = true;
+              merged++;
+            } else { skipped++; }
+          });
+        } else if (typeof cur[key] === 'object' && cur[key] !== null && typeof imp[key] === 'object' && imp[key] !== null && !Array.isArray(imp[key])) {
+          /* 对象（如 dietGoals/userProfile）：浅合并，远端新值优先 */
+          var before = JSON.stringify(cur[key]);
+          for (var k2 in imp[key]) { cur[key][k2] = imp[key][k2]; }
+          if (JSON.stringify(cur[key]) !== before) merged++;
+        } else {
+          cur[key] = imp[key]; merged++;
+        }
+      }
+      Store._cache = cur; Store.save();
+      return true;
+    } catch (e) {
+      console.error('同步失败', e);
+      toast('⚠ 同步失败：' + (e.message || '数据格式有误'));
+      return false;
+    }
+  }
+};
 
 /* 文件导入（智能合并模式） */
 $('#importInput').onchange = function (e) {
