@@ -780,9 +780,20 @@ var Diet = {
   },
   delFood: function (id) {
     var self = this;
+    var diet = Store.get('diet', []);
+    var rec = diet.find(function (x) { return x.id === id; });
     confirmDialog('删除饮食记录', '确认删除该条饮食记录？', function () {
       Store.set('diet', Store.get('diet', []).filter(function (x) { return x.id !== id; }));
-      self.renderSummary(); self.renderMeals(); self.renderHistory(); toast('已删除');
+      /* 删除后恢复库存（之前扣过的加回来） */
+      if (rec) {
+        var libX = Store.get('foodLib', []);
+        var stockX = libX.find(function (f) { return f.name === rec.name && (f.stock || 0) >= 0; });
+        if (stockX) {
+          stockX.stock = (stockX.stock || 0) + (rec.amount || 0);
+          Store.set('foodLib', libX);
+        }
+      }
+      self.renderSummary(); self.renderMeals(); self.renderHistory(); self.renderFoodLib(); toast('已删除，库存已恢复');
     }, { danger: true, okText: '删除' });
   },
   editFood: function (id) {
@@ -831,6 +842,13 @@ var Diet = {
           var amt = +$('#ef-amount').value || 0;
           if (amt <= 0) { toast('请输入有效的克重'); return; }
           var r = recalc(amt);
+          /* 库存调整：改克重 = 先恢复旧的，再扣新的 */
+          var libX = Store.get('foodLib', []);
+          var stockX = libX.find(function (f) { return f.name === rec.name && (f.stock || 0) > 0; });
+          if (stockX) {
+            stockX.stock = Math.max(0, (stockX.stock || 0) + (rec.amount || 0) - amt);
+            Store.set('foodLib', libX);
+          }
           rec.amount = amt;
           rec.meal = $('#ef-meal').value;
           rec.energy = r.energy;
@@ -840,7 +858,7 @@ var Diet = {
           rec.fiber = r.fiber;
           rec.sodium = r.sodium;
           Store.set('diet', diet);
-          closeModal(); self.renderSummary(); self.renderMeals(); self.renderHistory(); toast('已修改克重为 ' + amt + 'g');
+          closeModal(); self.renderSummary(); self.renderMeals(); self.renderHistory(); self.renderFoodLib(); toast('已修改克重为 ' + amt + 'g');
         };
       });
   },
