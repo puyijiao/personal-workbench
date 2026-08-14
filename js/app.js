@@ -71,6 +71,8 @@ document.addEventListener('click', function (e) {
       case 'edit-food': Diet.editFood(id); break;
       case 'del-food': Diet.delFood(id); break;
       case 'del-food-lib': Diet.delFoodLibItem(id); break;
+      case 'food-stock-in': Diet.stockIn(id); break;
+      case 'food-stock-out': Diet.stockOut(id); break;
       case 'edit-diet-goal': Diet.editGoal(); break;
       case 'diet-hist-prev': Diet.histNav(-1); break;
       case 'diet-hist-next': Diet.histNav(1); break;
@@ -991,6 +993,14 @@ var Diet = {
       var r2 = { energy: +(energy * factor).toFixed(0), protein: +((+$('#fd-pprotein', box).value || 0) * factor).toFixed(1), fat: +((+$('#fd-pfat', box).value || 0) * factor).toFixed(1), carb: +((+$('#fd-pcarb', box).value || 0) * factor).toFixed(1), fiber: +(fiber * factor).toFixed(1), sodium: +((+$('#fd-psodium', box).value || 0) * factor).toFixed(0) };
       var imgSrc = $('#fd-preview', box).classList.contains('show') ? $('#fd-imgel', box).src : null;
       Store.set('diet', Store.get('diet', []).concat([{ id: uid(), date: date, meal: meal, name: name, amount: amt3, energy: r2.energy, protein: r2.protein, fat: r2.fat, carb: r2.carb, fiber: r2.fiber, sodium: r2.sodium, image: imgSrc }]));
+      /* 自动扣库存：匹配食材库同名食材 */
+      var libAll = Store.get('foodLib', []);
+      var matchedStock = libAll.find(function (f) { return f.name === name && (f.stock || 0) > 0; });
+      if (matchedStock) {
+        matchedStock.stock = Math.max(0, (matchedStock.stock || 0) - amt3);
+        Store.set('foodLib', libAll);
+        if (matchedStock.stock <= 0) toast('「' + name + '」库存已用完');
+      }
       if (basis === 100 && $('#fd-savelib', box) && $('#fd-savelib', box).checked) {
         var lib = Store.get('foodLib', []);
         if (!lib.some(function (f) { return f.name === name; })) {
@@ -1010,8 +1020,17 @@ var Diet = {
     var cats = Store.get('foodLibCategories', []);
     var card = function (f) {
       var kj = f.energyKj != null ? f.energyKj : Math.round(f.energy * 4.184);
+      var stock = f.stock || 0;
+      var low = f.stockLow || 0;
+      var stockHtml = '<div class="fl-stock">' +
+        '<span class="fl-stock-num ' + (stock > 0 && low > 0 && stock <= low ? 'low' : (stock <= 0 ? 'empty' : '')) + '">📦 ' + (stock > 0 ? stock + 'g' : '无库存') + '</span>' +
+        '<span class="fl-stock-ops">' +
+        '<button class="fl-stock-btn" data-action="food-stock-in" data-id="' + f.id + '" title="买入/补货">＋买</button>' +
+        '<button class="fl-stock-btn" data-action="food-stock-out" data-id="' + f.id + '" title="手动扣减">－用</button>' +
+        '</span></div>';
       return '<div class="note-card"><button class="nc-edit" data-action="edit-food-lib" data-id="' + f.id + '" title="修改">✎</button><button class="nc-del" data-action="del-food-lib" data-id="' + f.id + '" title="删除">✕</button><div class="nc-body" style="font-weight:600">' + escape(f.name) + '</div>' +
-        '<div class="nc-date" style="font-size:11px">每100g：' + kj + 'kJ / ' + f.energy + 'kcal · 蛋' + (f.protein || 0) + 'g 脂' + (f.fat || 0) + 'g 碳' + (f.carb || 0) + 'g 纤' + (f.fiber || 0) + 'g 钠' + (f.sodium || 0) + 'mg</div></div>';
+        '<div class="nc-date" style="font-size:11px">每100g：' + kj + 'kJ / ' + f.energy + 'kcal · 蛋' + (f.protein || 0) + 'g 脂' + (f.fat || 0) + 'g 碳' + (f.carb || 0) + 'g 纤' + (f.fiber || 0) + 'g 钠' + (f.sodium || 0) + 'mg</div>' +
+        stockHtml + '</div>';
     };
     /* 按分类分组：先显示有食材的分类，最后是"未分类" */
     var groups = [];
@@ -1145,6 +1164,50 @@ var Diet = {
       self.renderFoodLib(); toast('已删除');
     }, { danger: true, okText: '删除' });
   },
+  /* 买入/补货 */
+  stockIn: function (id) {
+    var self = this;
+    var lib = Store.get('foodLib', []);
+    var f = lib.find(function (x) { return x.id === id; });
+    if (!f) return;
+    openModal('买入补货 · ' + f.name,
+      '<div class="field"><label>本次买入克重(g)</label><input type="number" id="st-in" placeholder="如：2000" min="1" /></div>' +
+      '<div class="field"><label>补货提醒阈值(g)</label><input type="number" id="st-low" value="' + (f.stockLow || '') + '" placeholder="如：200，库存低于这个值提醒补货" /></div>' +
+      '<div class="hint">当前库存 ' + (f.stock || 0) + 'g，买入后自动累加</div>',
+      '<button class="btn" data-action="modal-cancel">取消</button><button class="btn primary" id="st-save">确认买入</button>',
+      function () {
+        $('#st-save').onclick = function () {
+          var amt = +$('#st-in').value || 0;
+          if (amt <= 0) { toast('请输入克重'); return; }
+          f.stock = (f.stock || 0) + amt;
+          if ($('#st-low').value) f.stockLow = +$('#st-low').value;
+          Store.set('foodLib', lib);
+          closeModal(); self.renderFoodLib(); self.renderHistory(); toast('已买入 +' + amt + 'g');
+        };
+      }
+    );
+  },
+  /* 手动扣减 */
+  stockOut: function (id) {
+    var self = this;
+    var lib = Store.get('foodLib', []);
+    var f = lib.find(function (x) { return x.id === id; });
+    if (!f) return;
+    openModal('手动扣减 · ' + f.name,
+      '<div class="field"><label>本次食用克重(g)</label><input type="number" id="st-out" placeholder="如：80" min="1" /></div>' +
+      '<div class="hint">当前库存 ' + (f.stock || 0) + 'g（平时记饮食会自动扣，这里用于补录/修正）</div>',
+      '<button class="btn" data-action="modal-cancel">取消</button><button class="btn primary" id="st-save-out">确认扣减</button>',
+      function () {
+        $('#st-save-out').onclick = function () {
+          var amt = +$('#st-out').value || 0;
+          if (amt <= 0) { toast('请输入克重'); return; }
+          f.stock = Math.max(0, (f.stock || 0) - amt);
+          Store.set('foodLib', lib);
+          closeModal(); self.renderFoodLib(); toast('已扣减 ' + amt + 'g，剩余 ' + f.stock + 'g');
+        };
+      }
+    );
+  },
   /* ---------- 豆包快速粘贴 ---------- */
   mountQuickPaste: function () {
     var self = this;
@@ -1232,6 +1295,16 @@ var Diet = {
       });
     });
     Store.set('diet', arr);
+    /* 自动扣库存：所有匹配到食材库的项 */
+    var libAll = Store.get('foodLib', []);
+    items.forEach(function (it) {
+      var m = libAll.find(function (f) { return f.name === it.name && (f.stock || 0) > 0; });
+      if (m) {
+        m.stock = Math.max(0, (m.stock || 0) - it.amount);
+        if (m.stock <= 0) toast('「' + it.name + '」库存已用完');
+      }
+    });
+    if (libAll.some(function (f) { return (f.stock || 0) > 0; })) Store.set('foodLib', libAll);
     this.renderSummary(); this.renderMeals();
     var msg = '✓ 保存完成';
     if (libUsed) msg += ' · ' + libUsed + '项来自食材库';
@@ -2178,43 +2251,79 @@ var Health = {
     var buyGood = [];   /* 🟢 值得多买：对你好且最近吃过 */
     var badEaten = [];  /* 🔴 忌口但最近吃过了 */
     var tryNew = [];    /* 🆕 没吃过但对你好 */
+    var lowStock = [];  /* 🚨 库存快没了 */
+
+    /* 食材库库存：用于"值得多买=有货可吃 / 值得一试=没货建议买" */
+    var lib = Store.get('foodLib', []);
 
     eatenList.forEach(function (f) {
       if (matched(f, allBad)) {
         badEaten.push({ name: f, count: countMap[f] });
       } else if (matched(f, allGood)) {
-        buyGood.push({ name: f, count: countMap[f] });
+        /* 只有"仓库有货"才进值得多买（能吃到） */
+        var hasStock = lib.some(function (lf) { return (lf.stock || 0) > 0 && matched(lf.name, [f]); });
+        if (hasStock) buyGood.push({ name: f, count: countMap[f] });
       }
     });
-    /* 没吃过的推荐：把 allGood 按"、,，"拆成子词，子词单独判断（避免整串被顿号/圆/温等字影响拆字匹配） */
-    var tryNew = [];
+    /* 没吃过/没库存的推荐：把 allGood 按"、,，"拆成子词，子词单独判断 */
     var splitItems = function (s) {
       return s.split(/[、，,]/).map(function (x) { return x.replace(/[（(].*?[)）]/g, '').trim(); }).filter(function (x) { return x.length > 0; });
     };
     allGood.forEach(function (g) {
       splitItems(g).forEach(function (sub) {
-        if (tryNew.length >= 4) return;
         if (isExcluded(sub)) return;
         if (inHabits(sub)) return;
-        if (eatenList.some(function (f) { return matched(f, [sub]); })) return;
+        /* 仓库有货 → 不用推荐买 */
+        var inStock = lib.some(function (lf) { return (lf.stock || 0) > 0 && matched(lf.name, [sub]); });
+        if (inStock) return;
+        if (tryNew.length >= 4) return;
         if (tryNew.indexOf(sub) === -1) tryNew.push(sub);
       });
     });
+    /* 低库存提醒：有货但低于阈值（stockLow） */
+    lib.forEach(function (lf) {
+      var s = lf.stock || 0;
+      var low = lf.stockLow || 0;
+      if (s > 0 && low > 0 && s <= low) {
+        lowStock.push(lf.name + '（剩' + s + 'g）');
+      }
+    });
+    /* 搭配提示：优先用仓库里有货/吃过的食材找搭配 */
+    var pairs = Store.get('foodPairs', []);
+    var pairHits = [];
+    var eatenOrStock = function (name) {
+      return eatenList.some(function (f) { return matched(f, [name]); }) ||
+        lib.some(function (lf) { return (lf.stock || 0) > 0 && matched(lf.name, [name]); });
+    };
+    pairs.forEach(function (p) {
+      if (eatenOrStock(p.a) && eatenOrStock(p.b) && pairHits.length < 3) pairHits.push(p);
+    });
 
     var html = '';
-    if (buyGood.length || badEaten.length || tryNew.length) {
-      html += '<div class="advice-sec-title">🛒 食物采购顾问 <span class="hint">（基于30天记录）</span></div>';
+    var hasAny = buyGood.length || badEaten.length || tryNew.length || lowStock.length;
+    if (hasAny) {
+      html += '<div class="advice-sec-title">🛒 食物采购顾问 <span class="hint">（基于30天记录+库存）</span></div>';
       if (buyGood.length) {
-        html += '<div class="advice-line good"><span class="al-ic">🟢</span><span class="al-text"><b>值得多买：</b>' +
+        html += '<div class="advice-line good"><span class="al-ic">🟢</span><span class="al-text"><b>值得多买（有货可吃）：</b>' +
           buyGood.slice(0, 4).map(function (x) { return x.name + '（' + x.count + '次）'; }).join('、') + '</span></div>';
+      }
+      if (lowStock.length) {
+        html += '<div class="advice-line warn"><span class="al-ic">🚨</span><span class="al-text"><b>库存快没了，该补货：</b>' +
+          lowStock.join('、') + '</span></div>';
       }
       if (badEaten.length) {
         html += '<div class="advice-line warn"><span class="al-ic">🔴</span><span class="al-text"><b>忌口却常吃：</b>' +
           badEaten.slice(0, 4).map(function (x) { return x.name + '（' + x.count + '次）'; }).join('、') + '，建议逐步减少</span></div>';
       }
       if (tryNew.length) {
-        html += '<div class="advice-line good"><span class="al-ic">🆕</span><span class="al-text"><b>值得一试（还没吃过）：</b>' +
+        html += '<div class="advice-line good"><span class="al-ic">🆕</span><span class="al-text"><b>值得一试（没买过，建议入手）：</b>' +
           tryNew.join('、') + '</span></div>';
+      }
+      if (pairHits.length) {
+        html += '<div class="advice-sec-title">🤝 搭配建议</div>';
+        pairHits.forEach(function (p) {
+          html += '<div class="advice-line"><span class="al-ic">🤝</span><span class="al-text"><b>' + escape(p.a) + ' + ' + escape(p.b) + '</b>：' + escape(p.tip) + '</span></div>';
+        });
       }
     }
     return html;
