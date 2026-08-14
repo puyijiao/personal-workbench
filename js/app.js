@@ -7,7 +7,7 @@
 function navigate(target) {
   $$('.nav-item').forEach(function (n) { n.classList.toggle('active', n.dataset.target === target); });
   $$('.page').forEach(function (p) { p.classList.toggle('active', p.id === 'page-' + target); });
-  var map = { dashboard: Dashboard, work: Work, diet: Diet, body: Body, study: Study, title: Title, sport: Sport };
+  var map = { dashboard: Dashboard, work: Work, diet: Diet, body: Body, health: Health, study: Study, title: Title, sport: Sport };
   try { if (map[target]) map[target].render(); }
   catch (e) { console.error('渲染「' + target + '」失败:', e); }
   if (typeof Layout !== 'undefined') Layout.afterRender(target);
@@ -35,6 +35,13 @@ document.addEventListener('click', function (e) {
       case 'import-clipboard': importFromClipboard(); break;
       case 'toggle-fullscreen': toggleFullscreen(); break;
       case 'toggle-sync': Sync.open(); break;
+      case 'add-health-long': Health.addLong(); break;
+      case 'add-health-short': Health.addShort(); break;
+      case 'del-health-long': Health.delLong(id); break;
+      case 'del-health-short': Health.delShort(id); break;
+      case 'health-close-short': Health.closeShort(id); break;
+      case 'health-exclude': Health.toggleExclude(id); break;
+      case 'health-long-done': Health.doneShort(id); break;
       case 'rename-workbench': renameWorkbench(); break;
       /* 本职工作 */
       case 'add-task': Work.editTask(); break;
@@ -554,7 +561,7 @@ function matchFoodInDb(name) {
 }
 
 var Diet = {
-  render: function () { this.renderSummary(); this.renderMeals(); this.renderFoodLib(); this.renderHistory(); this.mountQuickPaste(); },
+  render: function () { this.renderSummary(); this.renderMeals(); this.renderFoodLib(); this.renderHistory(); this.mountQuickPaste(); if (typeof Health !== 'undefined') Health.renderAdvice(); },
   /* 历史回顾：日历 + 周汇总 + 选中日期明细 */
   _histYear: null, _histMonth: null, _histSel: null,
   renderHistory: function () {
@@ -1923,6 +1930,240 @@ var Sync = {
       toast('⚠ 同步失败：' + (e.message || '数据格式有误'));
       return false;
     }
+  }
+};
+
+/* ====================================================================
+   健康档案模块
+   —— 长期状况（终身生效）+ 短期状况（临时生效）
+   —— 基于规则库生成「今日饮食建议」
+   ==================================================================== */
+var HEALTH_RULES = {
+  '鼻炎': { icon: '🤧', good: ['橙子、猕猴桃等维C水果', '温性食物', '姜茶'], bad: ['辛辣食物', '生冷食物', '海鲜(除非你排除)'] },
+  '肠胃敏感': { icon: '🫃', good: ['易消化粥类', '蒸煮食物', '山药'], bad: ['冷饮', '油腻', '辛辣', '糯米'] },
+  '失眠': { icon: '😴', good: ['小米', '牛奶', '香蕉', '莲子'], bad: ['咖啡', '浓茶', '晚餐过饱'] },
+  '怕冷': { icon: '🧊', good: ['姜', '羊肉', '红枣', '桂圆'], bad: ['冰饮', '生冷瓜果'] },
+  '外痔疮': { icon: '🩸', good: ['高纤维蔬菜', '火龙果', '蜂蜜水'], bad: ['辛辣', '酒精', '久坐后立即如厕'] },
+  '眼睛干': { icon: '👀', good: ['胡萝卜', '蓝莓', '菠菜', '深海鱼'], bad: ['辛辣', '过量咖啡'] },
+  '眼睛疼': { icon: '🔥', good: ['蓝莓', '枸杞', '菊花茶'], bad: ['油炸', '辛辣', '长时间盯屏'] },
+  '舌苔厚重': { icon: '👅', good: ['冬瓜', '薏米', '白萝卜', '绿茶'], bad: ['油腻', '甜食', '酒精'] },
+  '舌苔齿痕': { icon: '🦷', good: ['红豆薏米', '山药', '南瓜'], bad: ['生冷', '寒凉瓜果'] }
+};
+
+var Health = {
+  render: function () { this.renderAdvice(); this.renderLong(); this.renderShort(); },
+  renderLong: function () {
+    var list = Store.get('healthLongTerm', []);
+    var box = $('#healthLongList');
+    if (!box) return;
+    if (!list.length) { box.innerHTML = '<div class="empty-mini">还没有登记长期状况，点右上角「＋ 添加」</div>'; return; }
+    box.innerHTML = list.map(function (h) {
+      var rule = HEALTH_RULES[h.name];
+      var ex = Store.get('healthExcludes', []).filter(function (x) { return x.longId === h.id; });
+      return '<div class="health-item">' +
+        '<div class="hi-head"><span class="hi-icon">' + (rule ? rule.icon : '📌') + '</span><b>' + escape(h.name) + '</b>' +
+        '<span class="hi-tag">长期</span><div class="hi-ops">' +
+        '<button class="dh-op" data-action="health-exclude" data-id="' + h.id + '" title="管理排除项">🚫</button>' +
+        '<button class="dh-op del" data-action="del-health-long" data-id="' + h.id + '" title="删除">🗑</button>' +
+        '</div></div>' +
+        '<div class="hi-body">' +
+        (rule ? '<div class="hi-row good">🤍 建议：' + escape(rule.good.join('、')) + '</div>' +
+          '<div class="hi-row bad">🚫 忌口：' + escape(rule.bad.join('、')) + '</div>' : '<div class="hint">自定义状况，仅记录</div>') +
+        (ex.length ? '<div class="hi-row exclude">❌ 已排除：' + escape(ex.map(function (x) { return x.name; }).join('、')) + '</div>' : '') +
+        '</div></div>';
+    }).join('');
+  },
+  renderShort: function () {
+    var list = Store.get('healthShortTerm', []);
+    var box = $('#healthShortList');
+    if (!box) return;
+    if (!list.length) { box.innerHTML = '<div class="empty-mini">没有短期状况。感冒、上火、过敏等临时情况可在这里登记</div>'; return; }
+    var todayS = today();
+    box.innerHTML = list.map(function (h) {
+      var daysLeft = daysBetween(todayS, h.endDate);
+      var expired = daysLeft < 0;
+      var ex = Store.get('healthExcludes', []).filter(function (x) { return x.shortId === h.id; });
+      return '<div class="health-item ' + (expired ? 'expired' : '') + '">' +
+        '<div class="hi-head"><span class="hi-icon">🤒</span><b>' + escape(h.name) + '</b>' +
+        '<span class="hi-tag ' + (expired ? 'exp' : '') + '">' + (expired ? '已到期' : '剩 ' + (daysLeft + 1) + ' 天') + '</span>' +
+        '<div class="hi-ops">' +
+        (expired ? '<button class="dh-op" data-action="health-long-done" data-id="' + h.id + '" title="已好转，关闭">✅ 好了</button>' : '<button class="dh-op" data-action="health-close-short" data-id="' + h.id + '" title="提前结束">⏹ 结束</button>') +
+        '<button class="dh-op del" data-action="del-health-short" data-id="' + h.id + '" title="删除">🗑</button>' +
+        '</div></div>' +
+        '<div class="hi-body">' +
+        '<div class="hi-row">📅 ' + h.startDate + ' ~ ' + h.endDate + '</div>' +
+        (h.symptom ? '<div class="hi-row">🧩 症状：' + escape(h.symptom) + '</div>' : '') +
+        (h.medicine ? '<div class="hi-row">💊 用药：' + escape(h.medicine) + '</div>' : '') +
+        (h.bad ? '<div class="hi-row bad">🚫 忌口：' + escape(h.bad) + '</div>' : '') +
+        (h.note ? '<div class="hi-row">📝 ' + escape(h.note) + '</div>' : '') +
+        '</div></div>';
+    }).join('');
+  },
+  /* 今日饮食建议 */
+  renderAdvice: function () {
+    var box = $('#healthAdvice') || $('#dietAdvice');
+    var box2 = ($('#healthAdvice') && $('#dietAdvice')) ? $('#dietAdvice') : null;
+    if (!box) return;
+    var lines = [];
+    var longs = Store.get('healthLongTerm', []);
+    var shorts = Store.get('healthShortTerm', []);
+    var excludes = Store.get('healthExcludes', []);
+    var t = today();
+
+    /* 长期状况提醒 */
+    longs.forEach(function (h) {
+      var rule = HEALTH_RULES[h.name];
+      if (!rule) return;
+      var exNames = excludes.filter(function (x) { return x.longId === h.id; }).map(function (x) { return x.name; });
+      lines.push({ icon: rule.icon, text: '「' + h.name + '」期间，建议多吃：' + rule.good.join('、') + '；少吃：' + rule.bad.join('、') + (exNames.length ? '；❌ 你已排除：' + exNames.join('、') : '') });
+    });
+
+    /* 短期状况提醒 */
+    shorts.forEach(function (h) {
+      if (h.endDate < t) return; /* 已过期不再提醒 */
+      var daysLeft = daysBetween(t, h.endDate);
+      var head = '「' + h.name + '」（' + (daysLeft >= 0 ? '剩' + (daysLeft + 1) + '天' : '已到期') + ')';
+      var parts = [];
+      if (h.bad) parts.push('忌口：' + h.bad);
+      if (h.medicine) parts.push('用药中：' + h.medicine);
+      if (h.symptom) parts.push('症状：' + h.symptom);
+      lines.push({ icon: '🤒', text: head + (parts.length ? ' · ' + parts.join(' · ') : '') });
+    });
+
+    /* 结合今天的饮食记录：检测是否吃了忌口（简单关键词匹配） */
+    var diet = Store.get('diet', []).filter(function (d) { return d.date === t; });
+    if (diet.length) {
+      var eaten = diet.map(function (d) { return d.name; }).join(' ');
+      var allBad = [];
+      longs.forEach(function (h) { var r = HEALTH_RULES[h.name]; if (r) allBad = allBad.concat(r.bad); });
+      shorts.forEach(function (h) { if (h.endDate >= t && h.bad) allBad.push(h.bad); });
+      var hit = allBad.filter(function (b) { return eaten.indexOf(b.replace(/[、，。]/g, '')) !== -1 || eaten.indexOf(b) !== -1; });
+      if (hit.length) {
+        lines.push({ icon: '⚠️', text: '今天吃的东西里有忌口提醒项：' + hit.join('、') + '，注意一下哦' });
+      }
+    }
+
+    var html;
+    if (!lines.length) {
+      html = '<div class="advice-empty">🎉 今日暂无特别提醒，吃好喝好～<br><span class="hint">在「🏥 健康档案」登记身体状况后，这里会自动生成建议</span></div>';
+    } else {
+      html = lines.map(function (l, i) {
+        return '<div class="advice-line' + (l.icon === '⚠️' ? ' warn' : '') + '">' +
+          '<span class="al-ic">' + l.icon + '</span><span class="al-text">' + l.text + '</span></div>';
+      }).join('');
+    }
+    box.innerHTML = html;
+    if (box2) box2.innerHTML = html;
+  },
+  /* 添加长期状况 */
+  addLong: function () {
+    var self = this;
+    var opts = Object.keys(HEALTH_RULES).map(function (k) {
+      return '<option value="' + k + '">' + HEALTH_RULES[k].icon + ' ' + k + '</option>';
+    }).join('');
+    openModal('添加长期状况',
+      '<div class="field"><label>状况类型</label><select id="hl-name">' + opts + '</select></div>' +
+      '<div class="hint">登记后，健康饮食页的「今日饮食建议」会持续按规则提醒</div>',
+      '<button class="btn" data-action="modal-cancel">取消</button><button class="btn primary" id="hl-save">保存</button>',
+      function () {
+        $('#hl-save').onclick = function () {
+          var name = $('#hl-name').value;
+          var list = Store.get('healthLongTerm', []);
+          if (list.some(function (h) { return h.name === name; })) { toast('已登记过该状况'); return; }
+          list.push({ id: uid(), name: name, added: today() });
+          Store.set('healthLongTerm', list);
+          closeModal(); self.render(); toast('已登记「' + name + '」');
+        };
+      }
+    );
+  },
+  /* 添加短期状况 */
+  addShort: function () {
+    var self = this;
+    var t = today();
+    openModal('添加短期状况',
+      '<div class="field"><label>状况名称</label><input id="hs-name" placeholder="如：感冒、上火、过敏" /></div>' +
+      '<div class="field"><label>症状描述</label><input id="hs-symptom" placeholder="如：流鼻涕、嗓子疼" /></div>' +
+      '<div class="field"><label>用药</label><input id="hs-medicine" placeholder="如：感冒灵颗粒" /></div>' +
+      '<div class="field"><label>饮食忌口</label><input id="hs-bad" placeholder="如：辛辣、油腻、海鲜" /></div>' +
+      '<div class="field-row-2"><div class="field"><label>开始日期</label><input type="date" id="hs-start" value="' + t + '" /></div>' +
+      '<div class="field"><label>预计结束</label><input type="date" id="hs-end" value="' + t + '" /></div></div>' +
+      '<div class="hint">到期后会自动提醒你确认是否好转，好转则关闭记录</div>',
+      '<button class="btn" data-action="modal-cancel">取消</button><button class="btn primary" id="hs-save">保存</button>',
+      function () {
+        $('#hs-save').onclick = function () {
+          var name = $('#hs-name').value.trim();
+          if (!name) { toast('请填写状况名称'); return; }
+          var start = $('#hs-start').value || t;
+          var end = $('#hs-end').value || t;
+          if (end < start) { toast('结束日期不能早于开始日期'); return; }
+          var list = Store.get('healthShortTerm', []);
+          list.push({ id: uid(), name: name, symptom: $('#hs-symptom').value.trim(), medicine: $('#hs-medicine').value.trim(), bad: $('#hs-bad').value.trim(), startDate: start, endDate: end });
+          Store.set('healthShortTerm', list);
+          closeModal(); self.render(); toast('已添加短期状况');
+        };
+      }
+    );
+  },
+  delLong: function (id) {
+    var self = this;
+    confirmDialog('删除长期状况', '确认删除该状况？其相关饮食建议将停止提醒。', function () {
+      Store.set('healthLongTerm', Store.get('healthLongTerm', []).filter(function (h) { return h.id !== id; }));
+      Store.set('healthExcludes', Store.get('healthExcludes', []).filter(function (x) { return x.longId !== id; }));
+      self.render(); toast('已删除');
+    }, { danger: true, okText: '删除' });
+  },
+  delShort: function (id) {
+    var self = this;
+    confirmDialog('删除短期状况', '确认删除该记录？', function () {
+      Store.set('healthShortTerm', Store.get('healthShortTerm', []).filter(function (h) { return h.id !== id; }));
+      self.render(); toast('已删除');
+    }, { danger: true, okText: '删除' });
+  },
+  /* 提前结束短期状况 */
+  closeShort: function (id) {
+    var self = this;
+    confirmDialog('提前结束', '确认提前结束该短期状况？结束后不再提醒。', function () {
+      var list = Store.get('healthShortTerm', []);
+      var h = list.find(function (x) { return x.id === id; });
+      if (h) { h.endDate = today(); Store.set('healthShortTerm', list); }
+      self.render(); toast('已结束');
+    }, { danger: true, okText: '结束' });
+  },
+  /* 到期确认"已好转" */
+  doneShort: function (id) {
+    var self = this;
+    confirmDialog('身体状况确认', '感冒等短期状况已到期，是否已好转？', function () {
+      Store.set('healthShortTerm', Store.get('healthShortTerm', []).filter(function (h) { return h.id !== id; }));
+      self.render(); toast('好，已关闭该记录 🎉');
+    }, { okText: '已好转' });
+  },
+  /* 管理排除项 */
+  toggleExclude: function (longId) {
+    var self = this;
+    var h = Store.get('healthLongTerm', []).find(function (x) { return x.id === longId; });
+    if (!h) return;
+    var rule = HEALTH_RULES[h.name];
+    var list = Store.get('healthExcludes', []);
+    var existing = list.filter(function (x) { return x.longId === longId; }).map(function (x) { return x.name; });
+    var options = rule ? rule.good.map(function (g) {
+      return '<label class="ex-item"><input type="checkbox" value="' + escape(g) + '" ' + (existing.indexOf(g) !== -1 ? 'checked' : '') + ' /> ' + escape(g) + '</label>';
+    }).join('') : '';
+    openModal('管理排除项 · ' + h.name,
+      '<div class="hint" style="margin-bottom:10px">勾选你认为不适合的食物（如过敏），将永远不会出现在饮食建议里</div>' +
+      (options || '<div class="hint">该状况没有预设建议食物</div>'),
+      '<button class="btn" data-action="modal-cancel">取消</button><button class="btn primary" id="hex-save">保存</button>',
+      function () {
+        $('#hex-save').onclick = function () {
+          var checked = [];
+          document.querySelectorAll('#modalBox input[type=checkbox]:checked').forEach(function (c) { checked.push(c.value); });
+          var newList = list.filter(function (x) { return x.longId !== longId; });
+          checked.forEach(function (v) { newList.push({ id: uid(), longId: longId, name: v }); });
+          Store.set('healthExcludes', newList);
+          closeModal(); self.render(); toast('已更新排除项');
+        };
+      }
+    );
   }
 };
 
