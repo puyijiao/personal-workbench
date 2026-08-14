@@ -60,7 +60,7 @@ var BUILTIN_CARDS = {
   study: ['studyOverviewCard', 'studyListCard', 'knowledgeCard'],
   title: ['titleOverviewCard', 'titleCourseChartCard', 'titleAchievementCard', 'courseTableCard'],
   sport: ['sportOverviewCard', 'miniCard', 'bandCard', 'sportCalendarCard'],
-  health: ['healthLongCard', 'healthShortCard', 'healthAdviceCard'],
+  health: ['healthAdviceCard', 'healthLongCard', 'healthHabitsCard', 'healthShortCard'],
 };
 
 var DEFAULT_NAMES = {
@@ -68,7 +68,7 @@ var DEFAULT_NAMES = {
   workRingCard: '设计稿进度', workStyleCard: '初样完成记录', workBoardCard: '任务看板', workNotesCard: '设计灵感与笔记',
   dietSummaryCard: '今日营养概览', dietMealsCard: '今日餐次', dietAdviceCard: '今日饮食建议', dietHistoryCard: '饮食历史回顾', foodLibCard: '我的食材库',
   bodyCardsCard: '最新体测', bodyWeightChartCard: '体重趋势', bodyFatChartCard: '体脂率趋势', bodyTableCard: '历史记录',
-  healthLongCard: '长期状况', healthShortCard: '短期状况', healthAdviceCard: '今日饮食建议',
+  healthLongCard: '长期状况', healthHabitsCard: '我的习惯', healthShortCard: '短期状况', healthAdviceCard: '今日饮食建议',
   studyOverviewCard: '备考概览', studyListCard: '学习计划', knowledgeCard: '知识笔记',
   titleOverviewCard: '课时进度', titleCourseChartCard: '课时完成进度', titleAchievementCard: '成果记录', courseTableCard: '课时明细',
   sportOverviewCard: '运动概览', miniCard: '每日小动作打卡', bandCard: '华为手环数据', sportCalendarCard: '本月打卡日历',
