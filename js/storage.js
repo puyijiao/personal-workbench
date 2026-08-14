@@ -61,6 +61,9 @@ const Store = {
       bandData: [],
       dietGoals: { cal: 1150, protein: 60, fat: 35, carb: 145, fiber: 25 },
       userProfile: { gender: '女', height: 165, birthYear: 1992, birthMonth: 6 },
+      healthLongTerm: [],
+      healthShortTerm: [],
+      healthExcludes: [],
       workbenchName: '个人工作台'
     };
     for (const k in defaults) {
