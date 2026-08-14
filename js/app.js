@@ -42,6 +42,8 @@ document.addEventListener('click', function (e) {
       case 'health-close-short': Health.closeShort(id); break;
       case 'health-exclude': Health.toggleExclude(id); break;
       case 'health-long-done': Health.doneShort(id); break;
+      case 'add-health-habit': Health.addHabit(); break;
+      case 'del-health-habit': Health.delHabit(id); break;
       case 'rename-workbench': renameWorkbench(); break;
       /* 本职工作 */
       case 'add-task': Work.editTask(); break;
@@ -1939,19 +1941,19 @@ var Sync = {
    —— 基于规则库生成「今日饮食建议」
    ==================================================================== */
 var HEALTH_RULES = {
-  '鼻炎': { icon: '🤧', good: ['橙子、猕猴桃等维C水果', '温性食物', '姜茶'], bad: ['辛辣食物', '生冷食物', '虾、蟹、贝、海鱼、海参（海鲜类）'] },
-  '肠胃敏感': { icon: '🫃', good: ['易消化粥类', '蒸煮食物', '山药'], bad: ['冷饮', '油腻', '辛辣', '糯米'] },
-  '失眠': { icon: '😴', good: ['小米', '牛奶', '香蕉', '莲子'], bad: ['咖啡', '浓茶', '晚餐过饱'] },
-  '怕冷': { icon: '🧊', good: ['姜', '羊肉', '红枣', '桂圆'], bad: ['冰饮', '生冷瓜果'] },
-  '外痔疮': { icon: '🩸', good: ['高纤维蔬菜', '火龙果', '蜂蜜水'], bad: ['辛辣', '酒精', '久坐后立即如厕'] },
-  '眼睛干': { icon: '👀', good: ['胡萝卜', '蓝莓', '菠菜', '深海鱼'], bad: ['辛辣', '过量咖啡'] },
-  '眼睛疼': { icon: '🔥', good: ['蓝莓', '枸杞', '菊花茶'], bad: ['油炸', '辛辣', '长时间盯屏'] },
-  '舌苔厚重': { icon: '👅', good: ['冬瓜', '薏米', '白萝卜', '绿茶'], bad: ['油腻', '甜食', '酒精'] },
-  '舌苔齿痕': { icon: '🦷', good: ['红豆薏米', '山药', '南瓜'], bad: ['生冷', '寒凉瓜果'] }
+  '鼻炎': { icon: '🤧', good: ['橙子、猕猴桃、草莓（维C水果）', '生姜、红枣、桂圆（温性）', '姜茶'], bad: ['辣椒、花椒（辛辣）', '冰饮、冰淇淋（生冷）', '虾、蟹、贝、海鱼、海参（海鲜类）'] },
+  '肠胃敏感': { icon: '🫃', good: ['小米粥、山药粥、瘦肉粥（易消化）', '山药、南瓜、蒸胡萝卜（蒸煮）'], bad: ['冰可乐、冰水（冷饮）', '炸鸡、油条（油腻）', '辣椒、火锅（辛辣）', '糯米、粽子（难消化）'] },
+  '失眠': { icon: '😴', good: ['小米', '牛奶', '香蕉', '莲子'], bad: ['咖啡', '浓茶、红茶（茶多酚）', '晚餐过饱'] },
+  '怕冷': { icon: '🧊', good: ['生姜', '羊肉', '红枣', '桂圆'], bad: ['冰饮料', '西瓜、凉拌菜（生冷瓜果）'] },
+  '外痔疮': { icon: '🩸', good: ['西蓝花、菠菜、芹菜（高纤维）', '火龙果', '蜂蜜水'], bad: ['辣椒、麻辣烫（辛辣）', '白酒、啤酒（酒精）', '久坐后立即如厕'] },
+  '眼睛干': { icon: '👀', good: ['胡萝卜', '蓝莓', '菠菜', '三文鱼、鲭鱼（深海鱼）'], bad: ['辣椒', '咖啡超2杯'] },
+  '眼睛疼': { icon: '🔥', good: ['蓝莓', '枸杞', '菊花茶'], bad: ['炸鸡、薯条（油炸）', '辣椒', '长时间盯屏'] },
+  '舌苔厚重': { icon: '👅', good: ['冬瓜', '薏米', '白萝卜', '绿茶'], bad: ['红烧肉、炸鸡（油腻）', '蛋糕、奶茶（甜食）', '白酒、啤酒（酒精）'] },
+  '舌苔齿痕': { icon: '🦷', good: ['红豆薏米', '山药', '南瓜'], bad: ['冰淇淋、冷饮（生冷）', '西瓜、苦瓜（寒凉瓜果）'] }
 };
 
 var Health = {
-  render: function () { this.renderAdvice(); this.renderLong(); this.renderShort(); },
+  render: function () { this.renderAdvice(); this.renderLong(); this.renderHabitsList(); this.renderShort(); },
   renderLong: function () {
     var list = Store.get('healthLongTerm', []);
     var box = $('#healthLongList');
@@ -2010,24 +2012,32 @@ var Health = {
     var excludes = Store.get('healthExcludes', []);
     var t = today();
 
-    /* 长期状况提醒 */
+    /* 长期状况提醒：不显示病症名，只显示"多吃/少吃"清单 */
+    var allGood = [], allBad = [];
     longs.forEach(function (h) {
       var rule = HEALTH_RULES[h.name];
       if (!rule) return;
-      var exNames = excludes.filter(function (x) { return x.longId === h.id; }).map(function (x) { return x.name; });
-      lines.push({ icon: rule.icon, text: '「' + h.name + '」期间，建议多吃：' + rule.good.join('、') + '；少吃：' + rule.bad.join('、') + (exNames.length ? '；❌ 你已排除：' + exNames.join('、') : '') });
+      allGood = allGood.concat(rule.good);
+      allBad = allBad.concat(rule.bad);
     });
+    /* 用户排除项：从建议里移除 */
+    var exNames = excludes.map(function (x) { return x.name; });
+    allGood = allGood.filter(function (g) { return exNames.indexOf(g) === -1; });
+    if (allGood.length) {
+      lines.push({ icon: '✅', kind: 'good', text: '可以多吃：' + allGood.join('、') });
+    }
+    if (allBad.length) {
+      lines.push({ icon: '❌', kind: 'bad', text: '建议少吃：' + allBad.join('、') });
+    }
 
-    /* 短期状况提醒 */
+    /* 短期状况提醒：不显示病症名，只显示忌口 */
     shorts.forEach(function (h) {
       if (h.endDate < t) return; /* 已过期不再提醒 */
       var daysLeft = daysBetween(t, h.endDate);
-      var head = '「' + h.name + '」（' + (daysLeft >= 0 ? '剩' + (daysLeft + 1) + '天' : '已到期') + ')';
       var parts = [];
       if (h.bad) parts.push('忌口：' + h.bad);
       if (h.medicine) parts.push('用药中：' + h.medicine);
-      if (h.symptom) parts.push('症状：' + h.symptom);
-      lines.push({ icon: '🤒', text: head + (parts.length ? ' · ' + parts.join(' · ') : '') });
+      lines.push({ icon: '⏳', kind: 'bad', text: '近期注意（剩' + (daysLeft + 1) + '天）：' + (parts.join(' · ') || '好好休息') });
     });
 
     /* 结合今天的饮食记录：检测是否吃了忌口（简单关键词匹配） */
@@ -2046,17 +2056,31 @@ var Health = {
     /* ===== 新增：30天食物采购分析 ===== */
     var purchaseHtml = this.renderPurchase();
 
+    /* ===== 我的习惯（饮食记录外的习惯性食物） ===== */
+    var habitsHtml = this.renderHabits();
+
     var html;
-    if (!lines.length && !purchaseHtml) {
+    if (!lines.length && !purchaseHtml && !habitsHtml) {
       html = '<div class="advice-empty">🎉 今日暂无特别提醒，吃好喝好～<br><span class="hint">在「🏥 健康档案」登记身体状况后，这里会自动生成建议</span></div>';
     } else {
       html = lines.map(function (l, i) {
-        return '<div class="advice-line' + (l.icon === '⚠️' ? ' warn' : '') + '">' +
+        var cls = l.kind === 'good' ? ' good' : (l.kind === 'bad' ? ' bad' : '');
+        return '<div class="advice-line' + cls + '">' +
           '<span class="al-ic">' + l.icon + '</span><span class="al-text">' + l.text + '</span></div>';
-      }).join('') + purchaseHtml;
+      }).join('') + habitsHtml + purchaseHtml;
     }
     box.innerHTML = html;
     if (box2) box2.innerHTML = html;
+  },
+  /* ===== 我的习惯（常喝的茶/习惯性食物） ===== */
+  renderHabits: function () {
+    var habits = Store.get('healthHabits', []);
+    if (!habits.length) return '';
+    var html = '<div class="advice-sec-title">🍵 我的习惯 <span class="hint">（持续饮用/食用）</span></div>';
+    habits.forEach(function (hb) {
+      html += '<div class="advice-line"><span class="al-ic">🕐</span><span class="al-text">' + (hb.time ? '<b>' + escape(hb.time) + '</b>：' : '') + escape(hb.name) + (hb.note ? '（' + escape(hb.note) + '）' : '') + '</span></div>';
+    });
+    return html;
   },
   /* ===== 30天食物采购分析（吃得多=买得多） ===== */
   renderPurchase: function () {
@@ -2236,6 +2260,49 @@ var Health = {
         };
       }
     );
+  },
+  /* ===== 我的习惯（记录外的习惯性食物/茶饮） ===== */
+  renderHabitsList: function () {
+    var box = $('#healthHabitsList');
+    if (!box) return;
+    var list = Store.get('healthHabits', []);
+    if (!list.length) { box.innerHTML = '<div class="empty-mini">还没有登记习惯，比如每天上午的红枣姜茶、下午的陈皮茶…点右上角「＋ 添加」</div>'; return; }
+    box.innerHTML = list.map(function (hb) {
+      return '<div class="health-item"><div class="hi-head"><span class="hi-icon">🍵</span>' +
+        '<b>' + escape(hb.name) + '</b>' +
+        (hb.time ? '<span class="hi-tag">' + escape(hb.time) + '</span>' : '') +
+        '<div class="hi-ops"><button class="dh-op del" data-action="del-health-habit" data-id="' + hb.id + '" title="删除">🗑</button></div>' +
+        '</div>' +
+        (hb.note ? '<div class="hi-body"><div class="hi-row">📝 ' + escape(hb.note) + '</div></div>' : '') +
+        '</div>';
+    }).join('');
+  },
+  addHabit: function () {
+    var self = this;
+    openModal('添加习惯性食物/茶饮',
+      '<div class="field"><label>名称</label><input id="hh-name" placeholder="如：红枣生姜枸杞茶" /></div>' +
+      '<div class="field"><label>时段</label><input id="hh-time" placeholder="如：上午 / 下午2点 / 睡前" /></div>' +
+      '<div class="field"><label>备注</label><input id="hh-note" placeholder="如：每天一杯 / 天冷时喝" /></div>' +
+      '<div class="hint">登记后会在「今日饮食建议」中展示，并结合健康档案给出时段建议</div>',
+      '<button class="btn" data-action="modal-cancel">取消</button><button class="btn primary" id="hh-save">保存</button>',
+      function () {
+        $('#hh-save').onclick = function () {
+          var name = $('#hh-name').value.trim();
+          if (!name) { toast('请填写名称'); return; }
+          var list = Store.get('healthHabits', []);
+          list.push({ id: uid(), name: name, time: $('#hh-time').value.trim(), note: $('#hh-note').value.trim() });
+          Store.set('healthHabits', list);
+          closeModal(); self.render(); toast('已添加习惯');
+        };
+      }
+    );
+  },
+  delHabit: function (id) {
+    var self = this;
+    confirmDialog('删除习惯', '确认删除该习惯记录？', function () {
+      Store.set('healthHabits', Store.get('healthHabits', []).filter(function (h) { return h.id !== id; }));
+      self.render(); toast('已删除');
+    }, { danger: true, okText: '删除' });
   }
 };
 
