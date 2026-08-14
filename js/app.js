@@ -980,6 +980,14 @@ var Diet = {
       if (amt <= 0) { toast('请输入食用量'); return; }
       var r = nutriForAmount(sel, amt);
       Store.set('diet', Store.get('diet', []).concat([{ id: uid(), date: date, meal: meal, name: sel.name, amount: amt, energy: r.energy, protein: r.protein, fat: r.fat, carb: r.carb, fiber: r.fiber, sodium: r.sodium }]));
+      /* 自动扣库存：从食材库选择/内置库匹配同名食材 */
+      var libAll2 = Store.get('foodLib', []);
+      var matchedStock2 = libAll2.find(function (f) { return f.name === sel.name && (f.stock || 0) > 0; });
+      if (matchedStock2) {
+        matchedStock2.stock = Math.max(0, (matchedStock2.stock || 0) - amt);
+        Store.set('foodLib', libAll2);
+        if (matchedStock2.stock <= 0) toast('「' + sel.name + '」库存已用完');
+      }
     } else {
       var name = $('#fd-pname', box).value.trim();
       if (!name) { toast('请填写食物名称'); return; }
