@@ -2023,6 +2023,20 @@ var Health = {
     /* 用户排除项：从建议里移除 */
     var exNames = excludes.map(function (x) { return x.name; });
     allGood = allGood.filter(function (g) { return exNames.indexOf(g) === -1; });
+    /* 我的习惯：已在喝的食材不再重复建议（拆字匹配，如"红枣生姜枸杞茶"→红枣/姜茶/生姜/枸杞） */
+    var habitNames2 = Store.get('healthHabits', []).map(function (h) { return h.name; });
+    if (habitNames2.length) {
+      allGood = allGood.filter(function (g) {
+        return !habitNames2.some(function (hn) {
+          if (hn.indexOf(g) !== -1 || g.indexOf(hn) !== -1) return true;
+          if (g.length >= 2) {
+            var chars = g.split('');
+            return chars.every(function (c) { return hn.indexOf(c) !== -1; });
+          }
+          return false;
+        });
+      });
+    }
     if (allGood.length) {
       lines.push({ icon: '✅', kind: 'good', text: '可以多吃：' + allGood.join('、') });
     }
@@ -2106,9 +2120,20 @@ var Health = {
         return food.indexOf(w) !== -1 || w.indexOf(food) !== -1;
       });
     };
-    /* 我的习惯里常吃的：从 good 里移除（已在喝/已常吃，不再推荐） */
+    /* 我的习惯里常吃的：从 good 里移除（已在喝/已常吃，不再推荐）
+       —— 用"拆字匹配"：习惯名里能拆出来的食材都算已有
+         例：习惯"红枣生姜枸杞茶" → 红枣✓ 生姜✓ 姜茶(姜+茶都在)✓ 枸杞✓ */
     if (habitNames.length) {
-      allGood = allGood.filter(function (g) { return !habitNames.some(function (hn) { return matched(hn, [g]); }); });
+      allGood = allGood.filter(function (g) {
+        return !habitNames.some(function (hn) {
+          if (hn.indexOf(g) !== -1 || g.indexOf(hn) !== -1) return true;
+          if (g.length >= 2) {
+            var chars = g.split('');
+            return chars.every(function (c) { return hn.indexOf(c) !== -1; });
+          }
+          return false;
+        });
+      });
     }
 
     var buyGood = [];   /* 🟢 值得多买：对你好且最近吃过 */
