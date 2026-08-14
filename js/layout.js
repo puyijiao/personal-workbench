@@ -46,6 +46,7 @@ var BUILTIN_SIDEBAR = [
   { id: 'work', type: 'builtin', icon: '👗', name: '本职工作' },
   { id: 'diet', type: 'builtin', icon: '🍚', name: '健康饮食' },
   { id: 'body', type: 'builtin', icon: '📋', name: '体重体脂' },
+  { id: 'health', type: 'builtin', icon: '🏥', name: '健康档案' },
   { id: 'study', type: 'builtin', icon: '📚', name: '课外提升' },
   { id: 'title', type: 'builtin', icon: '🎓', name: '中级职称' },
   { id: 'sport', type: 'builtin', icon: '🏃', name: '运动打卡' },
@@ -54,18 +55,20 @@ var BUILTIN_SIDEBAR = [
 var BUILTIN_CARDS = {
   dashboard: ['dashCard'],
   work: ['workRingCard', 'workStyleCard', 'workBoardCard', 'workNotesCard'],
-  diet: ['dietSummaryCard', 'dietMealsCard', 'dietHistoryCard', 'foodLibCard'],
+  diet: ['dietAdviceCard', 'dietSummaryCard', 'dietMealsCard', 'dietHistoryCard', 'foodLibCard'],
   body: ['bodyCardsCard', 'bodyWeightChartCard', 'bodyFatChartCard', 'bodyTableCard'],
   study: ['studyOverviewCard', 'studyListCard', 'knowledgeCard'],
   title: ['titleOverviewCard', 'titleCourseChartCard', 'titleAchievementCard', 'courseTableCard'],
   sport: ['sportOverviewCard', 'miniCard', 'bandCard', 'sportCalendarCard'],
+  health: ['healthLongCard', 'healthShortCard', 'healthAdviceCard'],
 };
 
 var DEFAULT_NAMES = {
   dashCard: '今日总览',
   workRingCard: '设计稿进度', workStyleCard: '初样完成记录', workBoardCard: '任务看板', workNotesCard: '设计灵感与笔记',
-  dietSummaryCard: '今日营养概览', dietMealsCard: '今日餐次', dietHistoryCard: '饮食历史回顾', foodLibCard: '我的食材库',
+  dietSummaryCard: '今日营养概览', dietMealsCard: '今日餐次', dietAdviceCard: '今日饮食建议', dietHistoryCard: '饮食历史回顾', foodLibCard: '我的食材库',
   bodyCardsCard: '最新体测', bodyWeightChartCard: '体重趋势', bodyFatChartCard: '体脂率趋势', bodyTableCard: '历史记录',
+  healthLongCard: '长期状况', healthShortCard: '短期状况', healthAdviceCard: '今日饮食建议',
   studyOverviewCard: '备考概览', studyListCard: '学习计划', knowledgeCard: '知识笔记',
   titleOverviewCard: '课时进度', titleCourseChartCard: '课时完成进度', titleAchievementCard: '成果记录', courseTableCard: '课时明细',
   sportOverviewCard: '运动概览', miniCard: '每日小动作打卡', bandCard: '华为手环数据', sportCalendarCard: '本月打卡日历',
