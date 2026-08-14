@@ -2174,12 +2174,19 @@ var Health = {
         buyGood.push({ name: f, count: countMap[f] });
       }
     });
-    /* 没吃过的推荐：allGood 中 30天内没吃过、也没登记为习惯的，取前4 */
+    /* 没吃过的推荐：把 allGood 按"、,，"拆成子词，子词单独判断（避免整串被顿号/圆/温等字影响拆字匹配） */
+    var tryNew = [];
+    var splitItems = function (s) {
+      return s.split(/[、，,]/).map(function (x) { return x.replace(/[（(].*?[)）]/g, '').trim(); }).filter(function (x) { return x.length > 0; });
+    };
     allGood.forEach(function (g) {
-      if (tryNew.length >= 4) return;
-      var already = eatenList.some(function (f) { return matched(f, [g]); }) ||
-        habitNames.some(function (hn) { return matched(hn, [g]); });
-      if (!already) tryNew.push(g);
+      splitItems(g).forEach(function (sub) {
+        if (tryNew.length >= 4) return;
+        if (isExcluded(sub)) return;
+        if (inHabits(sub)) return;
+        if (eatenList.some(function (f) { return matched(f, [sub]); })) return;
+        if (tryNew.indexOf(sub) === -1) tryNew.push(sub);
+      });
     });
 
     var html = '';
