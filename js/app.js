@@ -2043,17 +2043,89 @@ var Health = {
       }
     }
 
+    /* ===== 新增：30天食物采购分析 ===== */
+    var purchaseHtml = this.renderPurchase();
+
     var html;
-    if (!lines.length) {
+    if (!lines.length && !purchaseHtml) {
       html = '<div class="advice-empty">🎉 今日暂无特别提醒，吃好喝好～<br><span class="hint">在「🏥 健康档案」登记身体状况后，这里会自动生成建议</span></div>';
     } else {
       html = lines.map(function (l, i) {
         return '<div class="advice-line' + (l.icon === '⚠️' ? ' warn' : '') + '">' +
           '<span class="al-ic">' + l.icon + '</span><span class="al-text">' + l.text + '</span></div>';
-      }).join('');
+      }).join('') + purchaseHtml;
     }
     box.innerHTML = html;
     if (box2) box2.innerHTML = html;
+  },
+  /* ===== 30天食物采购分析（吃得多=买得多） ===== */
+  renderPurchase: function () {
+    var longs = Store.get('healthLongTerm', []);
+    var shorts = Store.get('healthShortTerm', []);
+    var excludes = Store.get('healthExcludes', []);
+    var t = today();
+    var d30 = new Date(); d30.setDate(d30.getDate() - 29);
+    var d30Str = d30.getFullYear() + '-' + pad2(d30.getMonth() + 1) + '-' + pad2(d30.getDate());
+
+    /* 统计最近30天每种食物吃了多少次 */
+    var countMap = {};
+    Store.get('diet', []).forEach(function (d) {
+      if (!d.date || d.date < d30Str) return;
+      countMap[d.name] = (countMap[d.name] || 0) + 1;
+    });
+    var eatenList = Object.keys(countMap); /* 30天内吃过的所有食物名 */
+
+    /* 汇总所有长期/短期状况的规则 */
+    var allGood = [], allBad = [];
+    longs.forEach(function (h) { var r = HEALTH_RULES[h.name]; if (r) { allGood = allGood.concat(r.good); allBad = allBad.concat(r.bad); } });
+    shorts.forEach(function (h) { if (h.endDate >= t && h.bad) allBad = allBad.concat(h.bad.split(/[、，,]/)); });
+    /* 用户排除项：从 good 里移除（永不推荐） */
+    var exNames = excludes.map(function (x) { return x.name; });
+    allGood = allGood.filter(function (g) { return exNames.indexOf(g) === -1; });
+
+    /* 匹配：判断某食物名是否命中关键词列表（双向包含） */
+    var matched = function (food, words) {
+      return words.some(function (w) {
+        w = w.replace(/[（(].*?[)）]/g, '').trim(); /* 去掉括号注释 */
+        if (!w) return false;
+        return food.indexOf(w) !== -1 || w.indexOf(food) !== -1;
+      });
+    };
+
+    var buyGood = [];   /* 🟢 值得多买：对你好且最近吃过 */
+    var badEaten = [];  /* 🔴 忌口但最近吃过了 */
+    var tryNew = [];    /* 🆕 没吃过但对你好 */
+
+    eatenList.forEach(function (f) {
+      if (matched(f, allBad)) {
+        badEaten.push({ name: f, count: countMap[f] });
+      } else if (matched(f, allGood)) {
+        buyGood.push({ name: f, count: countMap[f] });
+      }
+    });
+    /* 没吃过的推荐：allGood 中 30天内没出现过的，取前4 */
+    allGood.forEach(function (g) {
+      if (tryNew.length >= 4) return;
+      if (!eatenList.some(function (f) { return matched(f, [g]); })) tryNew.push(g);
+    });
+
+    var html = '';
+    if (buyGood.length || badEaten.length || tryNew.length) {
+      html += '<div class="advice-sec-title">🛒 食物采购顾问 <span class="hint">（基于30天记录）</span></div>';
+      if (buyGood.length) {
+        html += '<div class="advice-line good"><span class="al-ic">🟢</span><span class="al-text"><b>值得多买：</b>' +
+          buyGood.slice(0, 4).map(function (x) { return x.name + '（' + x.count + '次）'; }).join('、') + '</span></div>';
+      }
+      if (badEaten.length) {
+        html += '<div class="advice-line warn"><span class="al-ic">🔴</span><span class="al-text"><b>忌口却常吃：</b>' +
+          badEaten.slice(0, 4).map(function (x) { return x.name + '（' + x.count + '次）'; }).join('、') + '，建议逐步减少</span></div>';
+      }
+      if (tryNew.length) {
+        html += '<div class="advice-line good"><span class="al-ic">🆕</span><span class="al-text"><b>值得一试（还没吃过）：</b>' +
+          tryNew.join('、') + '</span></div>';
+      }
+    }
+    return html;
   },
   /* 添加长期状况 */
   addLong: function () {
