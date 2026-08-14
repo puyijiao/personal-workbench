@@ -2012,7 +2012,18 @@ var Health = {
     var excludes = Store.get('healthExcludes', []);
     var t = today();
 
-    /* 长期状况提醒：不显示病症名，只显示"多吃/少吃"清单 */
+    /* 长期状况提醒：基于30天饮食，给针对性"多吃/少吃"
+       —— 不再列所有规则，只针对"你最近吃不够的好食物"和"你最近吃多了的坏食物" */
+    var d30 = new Date(); d30.setDate(d30.getDate() - 29);
+    var d30Str = d30.getFullYear() + '-' + pad2(d30.getMonth() + 1) + '-' + pad2(d30.getDate());
+    var countMap = {};
+    Store.get('diet', []).forEach(function (d) {
+      if (!d.date || d.date < d30Str) return;
+      countMap[d.name] = (countMap[d.name] || 0) + 1;
+    });
+    var eatenSet = Object.keys(countMap);
+
+    /* 汇总规则 */
     var allGood = [], allBad = [];
     longs.forEach(function (h) {
       var rule = HEALTH_RULES[h.name];
@@ -2020,28 +2031,55 @@ var Health = {
       allGood = allGood.concat(rule.good);
       allBad = allBad.concat(rule.bad);
     });
-    /* 用户排除项：从建议里移除 */
+    /* 排除项 + 习惯 → 都不推荐 */
     var exNames = excludes.map(function (x) { return x.name; });
-    allGood = allGood.filter(function (g) { return exNames.indexOf(g) === -1; });
-    /* 我的习惯：已在喝的食材不再重复建议（拆字匹配，如"红枣生姜枸杞茶"→红枣/姜茶/生姜/枸杞） */
     var habitNames2 = Store.get('healthHabits', []).map(function (h) { return h.name; });
-    if (habitNames2.length) {
-      allGood = allGood.filter(function (g) {
-        return !habitNames2.some(function (hn) {
-          if (hn.indexOf(g) !== -1 || g.indexOf(hn) !== -1) return true;
-          if (g.length >= 2) {
-            var chars = g.split('');
-            return chars.every(function (c) { return hn.indexOf(c) !== -1; });
-          }
-          return false;
-        });
+    var inHabits = function (g) {
+      return habitNames2.some(function (hn) {
+        if (hn.indexOf(g) !== -1 || g.indexOf(hn) !== -1) return true;
+        if (g.length >= 2) {
+          var chars = g.split('');
+          return chars.every(function (c) { return hn.indexOf(c) !== -1; });
+        }
+        return false;
       });
+    };
+    allGood = allGood.filter(function (g) { return exNames.indexOf(g) === -1 && !inHabits(g); });
+
+    /* 匹配某食物名是否命中关键词列表 */
+    var matched = function (food, words) {
+      return words.some(function (w) {
+        w = w.replace(/[（(].*?[)）]/g, '').trim();
+        if (!w) return false;
+        return food.indexOf(w) !== -1 || w.indexOf(food) !== -1;
+      });
+    };
+    /* "可以多吃" = good 词里**最近30天没怎么吃过的**（你最近没吃它） */
+    var needMore = [];
+    allGood.forEach(function (g) {
+      if (inHabits(g)) return;
+      var matchedEaten = eatenSet.filter(function (f) { return matched(f, [g]); });
+      /* 30天没吃过这个食物 → 推荐多吃（最多取5个） */
+      if (matchedEaten.length === 0) {
+        if (needMore.length < 5) needMore.push(g);
+      } else {
+        /* 吃过但少（合计≤2次）→ 也算"不够" */
+        var total = matchedEaten.reduce(function (s, f) { return s + (countMap[f] || 0); }, 0);
+        if (total <= 2 && needMore.length < 5) needMore.push(g);
+      }
+    });
+    if (needMore.length) {
+      lines.push({ icon: '✅', kind: 'good', text: '最近吃得少，可以多吃：' + needMore.join('、') });
     }
-    if (allGood.length) {
-      lines.push({ icon: '✅', kind: 'good', text: '可以多吃：' + allGood.join('、') });
-    }
-    if (allBad.length) {
-      lines.push({ icon: '❌', kind: 'bad', text: '建议少吃：' + allBad.join('、') });
+    /* "建议少吃" = bad 词里**最近30天吃多了的** */
+    var overeat = [];
+    allBad.forEach(function (b) {
+      var matchedEaten = eatenSet.filter(function (f) { return matched(f, [b]); });
+      var total = matchedEaten.reduce(function (s, f) { return s + (countMap[f] || 0); }, 0);
+      if (total >= 3) overeat.push(b + '（' + total + '次）');
+    });
+    if (overeat.length) {
+      lines.push({ icon: '❌', kind: 'bad', text: '最近吃多了，建议少：' + overeat.join('、') });
     }
 
     /* 短期状况提醒：不显示病症名，只显示忌口 */
