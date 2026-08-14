@@ -2056,31 +2056,18 @@ var Health = {
     /* ===== 新增：30天食物采购分析 ===== */
     var purchaseHtml = this.renderPurchase();
 
-    /* ===== 我的习惯（饮食记录外的习惯性食物） ===== */
-    var habitsHtml = this.renderHabits();
-
     var html;
-    if (!lines.length && !purchaseHtml && !habitsHtml) {
+    if (!lines.length && !purchaseHtml) {
       html = '<div class="advice-empty">🎉 今日暂无特别提醒，吃好喝好～<br><span class="hint">在「🏥 健康档案」登记身体状况后，这里会自动生成建议</span></div>';
     } else {
       html = lines.map(function (l, i) {
         var cls = l.kind === 'good' ? ' good' : (l.kind === 'bad' ? ' bad' : '');
         return '<div class="advice-line' + cls + '">' +
           '<span class="al-ic">' + l.icon + '</span><span class="al-text">' + l.text + '</span></div>';
-      }).join('') + habitsHtml + purchaseHtml;
+      }).join('') + purchaseHtml;
     }
     box.innerHTML = html;
     if (box2) box2.innerHTML = html;
-  },
-  /* ===== 我的习惯（常喝的茶/习惯性食物） ===== */
-  renderHabits: function () {
-    var habits = Store.get('healthHabits', []);
-    if (!habits.length) return '';
-    var html = '<div class="advice-sec-title">🍵 我的习惯 <span class="hint">（持续饮用/食用）</span></div>';
-    habits.forEach(function (hb) {
-      html += '<div class="advice-line"><span class="al-ic">🕐</span><span class="al-text">' + (hb.time ? '<b>' + escape(hb.time) + '</b>：' : '') + escape(hb.name) + (hb.note ? '（' + escape(hb.note) + '）' : '') + '</span></div>';
-    });
-    return html;
   },
   /* ===== 30天食物采购分析（吃得多=买得多） ===== */
   renderPurchase: function () {
@@ -2098,6 +2085,10 @@ var Health = {
       countMap[d.name] = (countMap[d.name] || 0) + 1;
     });
     var eatenList = Object.keys(countMap); /* 30天内吃过的所有食物名 */
+
+    /* 我的习惯：常吃/常喝的也算"已有"，不重复推荐 */
+    var habits = Store.get('healthHabits', []);
+    var habitNames = habits.map(function (h) { return h.name; });
 
     /* 汇总所有长期/短期状况的规则 */
     var allGood = [], allBad = [];
@@ -2127,10 +2118,12 @@ var Health = {
         buyGood.push({ name: f, count: countMap[f] });
       }
     });
-    /* 没吃过的推荐：allGood 中 30天内没出现过的，取前4 */
+    /* 没吃过的推荐：allGood 中 30天内没吃过、也没登记为习惯的，取前4 */
     allGood.forEach(function (g) {
       if (tryNew.length >= 4) return;
-      if (!eatenList.some(function (f) { return matched(f, [g]); })) tryNew.push(g);
+      var already = eatenList.some(function (f) { return matched(f, [g]); }) ||
+        habitNames.some(function (hn) { return matched(hn, [g]); });
+      if (!already) tryNew.push(g);
     });
 
     var html = '';
