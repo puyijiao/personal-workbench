@@ -2147,6 +2147,18 @@ var Health = {
         return food.indexOf(w) !== -1 || w.indexOf(food) !== -1;
       });
     };
+    /* 拆字匹配：习惯名里能拆出来的食材都算已有（用于子词级排除） */
+    var inHabits = function (g) {
+      return habitNames.some(function (hn) {
+        if (hn.indexOf(g) !== -1 || g.indexOf(hn) !== -1) return true;
+        if (g.length >= 2) {
+          var chars = g.split('');
+          return chars.every(function (c) { return hn.indexOf(c) !== -1; });
+        }
+        return false;
+      });
+    };
+    var isExcluded = function (g) { return exNames.indexOf(g) !== -1 || inHabits(g); };
     /* 我的习惯里常吃的：从 good 里移除（已在喝/已常吃，不再推荐）
        —— 用"拆字匹配"：习惯名里能拆出来的食材都算已有
          例：习惯"红枣生姜枸杞茶" → 红枣✓ 生姜✓ 姜茶(姜+茶都在)✓ 枸杞✓ */
