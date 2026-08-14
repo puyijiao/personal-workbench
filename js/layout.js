@@ -145,6 +145,17 @@ var Layout = {
       dietPg.order = dietPg.order.filter(function (x) { return x !== 'foodLibCard'; });
       dietPg.order.push('foodLibCard');
     }
+    /* 迁移规则：健康饮食页「今日饮食建议」始终排在第一位 */
+    if (dietPg && Array.isArray(dietPg.order) && dietPg.order.indexOf('dietAdviceCard') !== -1) {
+      dietPg.order = dietPg.order.filter(function (x) { return x !== 'dietAdviceCard'; });
+      dietPg.order.unshift('dietAdviceCard');
+    }
+    /* 迁移规则：健康档案页「今日饮食建议」排第一 */
+    var healthPg = c.pages['health'];
+    if (healthPg && Array.isArray(healthPg.order) && healthPg.order.indexOf('healthAdviceCard') !== -1) {
+      healthPg.order = healthPg.order.filter(function (x) { return x !== 'healthAdviceCard'; });
+      healthPg.order.unshift('healthAdviceCard');
+    }
     c.sidebar.forEach(function (i) { if (i.type === 'custom' && !c.pages[i.id]) c.pages[i.id] = { order: [], cards: {} }; });
   },
 
