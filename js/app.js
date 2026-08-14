@@ -2067,12 +2067,9 @@ var Health = {
     /* 按次数排序：吃得多排前面 */
     goodEaten.sort(function (a, b) { return b.count - a.count; });
     badEaten.sort(function (a, b) { return b.count - a.count; });
-    if (goodEaten.length) {
-      lines.push({ icon: '✅', kind: 'good', text: '可以多吃（你最近吃过）：' + goodEaten.slice(0, 5).map(function (x) { return x.name + '（' + x.count + '次）'; }).join('、') });
-    }
-    if (badEaten.length) {
-      lines.push({ icon: '❌', kind: 'bad', text: '建议少吃（吃多伤身）：' + badEaten.slice(0, 5).map(function (x) { return x.name + '（' + x.count + '次）'; }).join('、') + '——吃完就不买了' });
-    }
+    /* 两个分类固定显示，没内容就标题后面为空 */
+    lines.push({ icon: '✅', kind: 'good', text: '可以多吃：' + (goodEaten.length ? goodEaten.slice(0, 5).map(function (x) { return x.name + '（' + x.count + '次）'; }).join('、') : '') });
+    lines.push({ icon: '❌', kind: 'bad', text: '建议少吃：' + (badEaten.length ? badEaten.slice(0, 5).map(function (x) { return x.name + '（' + x.count + '次）'; }).join('、') + '——吃完就不买了' : '') });
 
     /* 短期状况提醒：不显示病症名，只显示忌口 */
     shorts.forEach(function (h) {
