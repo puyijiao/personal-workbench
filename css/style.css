@@ -150,6 +150,14 @@ html,body{overflow-x:hidden;max-width:100%}
 .fl-group-head{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .fl-group-head .fl-count{font-size:11px;color:var(--ink-soft);background:#f1f5f9;border-radius:10px;padding:1px 8px}
 .fl-group-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+/* 库存显示 */
+.fl-stock{display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.fl-stock-num{font-size:12px;font-weight:700;color:#16a34a}
+.fl-stock-num.low{color:#d97706}
+.fl-stock-num.empty{color:#dc2626}
+.fl-stock-ops{display:flex;gap:4px}
+.fl-stock-btn{font-size:11px;padding:2px 8px;border-radius:6px;background:#f1f5f9;color:var(--ink);border:1px solid var(--line)}
+.fl-stock-btn:hover{background:rgba(99,102,241,.1);color:var(--brand)}
 
 /* 饮食 */
 .diet-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px}
