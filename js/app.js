@@ -564,6 +564,32 @@ function matchFoodInDb(name) {
   return null;
 }
 
+/* 统一库存扣减：归一化匹配（完全同名 > 包含匹配选最短），返回扣减结果 */
+function deductStock(name, amount) {
+  var lib = Store.get('foodLib', []);
+  var norm = function (s) { return String(s || '').replace(/[\s\u3000（）()·,，。、.．]/g, '').toLowerCase(); };
+  var nName = norm(name);
+  if (!nName || !(amount > 0)) return { ok: false, matched: null, reason: '无食材名或克重' };
+  /* 1. 完全同名 */
+  var hit = lib.find(function (f) { return norm(f.name) === nName && (f.stock || 0) > 0; });
+  /* 2. 包含匹配：选出候选，取名字最短的（"鸡"→"鸡胸肉"而非"鸡蛋"） */
+  if (!hit) {
+    var cands = lib.filter(function (f) {
+      if (!(f.stock || 0) > 0) return false;
+      var nf = norm(f.name);
+      return nf.indexOf(nName) !== -1 || nName.indexOf(nf) !== -1;
+    });
+    if (cands.length) {
+      cands.sort(function (a, b) { return norm(a.name).length - norm(b.name).length; });
+      hit = cands[0];
+    }
+  }
+  if (!hit) return { ok: false, matched: null, reason: '未匹配到有库存的食材' };
+  hit.stock = Math.max(0, (hit.stock || 0) - amount);
+  Store.set('foodLib', lib);
+  return { ok: true, matched: hit.name, left: hit.stock, empty: hit.stock <= 0 };
+}
+
 var Diet = {
   render: function () { this.renderSummary(); this.renderMeals(); this.renderFoodLib(); this.renderHistory(); this.mountQuickPaste(); if (typeof Health !== 'undefined') Health.renderAdvice(); },
   /* 历史回顾：日历 + 周汇总 + 选中日期明细 */
@@ -998,14 +1024,9 @@ var Diet = {
       if (amt <= 0) { toast('请输入食用量'); return; }
       var r = nutriForAmount(sel, amt);
       Store.set('diet', Store.get('diet', []).concat([{ id: uid(), date: date, meal: meal, name: sel.name, amount: amt, energy: r.energy, protein: r.protein, fat: r.fat, carb: r.carb, fiber: r.fiber, sodium: r.sodium }]));
-      /* 自动扣库存：从食材库选择/内置库匹配同名食材 */
-      var libAll2 = Store.get('foodLib', []);
-      var matchedStock2 = libAll2.find(function (f) { return f.name === sel.name && (f.stock || 0) > 0; });
-      if (matchedStock2) {
-        matchedStock2.stock = Math.max(0, (matchedStock2.stock || 0) - amt);
-        Store.set('foodLib', libAll2);
-        if (matchedStock2.stock <= 0) toast('「' + sel.name + '」库存已用完');
-      }
+      /* 统一扣库存 */
+      var stRes = deductStock(sel.name, amt);
+      if (stRes.empty) toast('「' + stRes.matched + '」库存已用完');
     } else {
       var name = $('#fd-pname', box).value.trim();
       if (!name) { toast('请填写食物名称'); return; }
@@ -1019,14 +1040,11 @@ var Diet = {
       var r2 = { energy: +(energy * factor).toFixed(0), protein: +((+$('#fd-pprotein', box).value || 0) * factor).toFixed(1), fat: +((+$('#fd-pfat', box).value || 0) * factor).toFixed(1), carb: +((+$('#fd-pcarb', box).value || 0) * factor).toFixed(1), fiber: +(fiber * factor).toFixed(1), sodium: +((+$('#fd-psodium', box).value || 0) * factor).toFixed(0) };
       var imgSrc = $('#fd-preview', box).classList.contains('show') ? $('#fd-imgel', box).src : null;
       Store.set('diet', Store.get('diet', []).concat([{ id: uid(), date: date, meal: meal, name: name, amount: amt3, energy: r2.energy, protein: r2.protein, fat: r2.fat, carb: r2.carb, fiber: r2.fiber, sodium: r2.sodium, image: imgSrc }]));
-      /* 自动扣库存：匹配食材库同名食材 */
-      var libAll = Store.get('foodLib', []);
-      var matchedStock = libAll.find(function (f) { return f.name === name && (f.stock || 0) > 0; });
-      if (matchedStock) {
-        matchedStock.stock = Math.max(0, (matchedStock.stock || 0) - amt3);
-        Store.set('foodLib', libAll);
-        if (matchedStock.stock <= 0) toast('「' + name + '」库存已用完');
-      }
+      /* 统一扣库存 */
+      var stRes2 = deductStock(name, amt3);
+      if (stRes2.empty) toast('「' + stRes2.matched + '」库存已用完');
+      else if (stRes2.ok) toast('已扣库存「' + stRes2.matched + '」' + amt3 + 'g');
+      else toast('⚠️ 「' + name + '」未匹配到库存，请检查食材库名称');
       if (basis === 100 && $('#fd-savelib', box) && $('#fd-savelib', box).checked) {
         var lib = Store.get('foodLib', []);
         if (!lib.some(function (f) { return f.name === name; })) {
@@ -1321,16 +1339,17 @@ var Diet = {
       });
     });
     Store.set('diet', arr);
-    /* 自动扣库存：所有匹配到食材库的项 */
-    var libAll = Store.get('foodLib', []);
-    items.forEach(function (it) {
-      var m = libAll.find(function (f) { return f.name === it.name && (f.stock || 0) > 0; });
-      if (m) {
-        m.stock = Math.max(0, (m.stock || 0) - it.amount);
-        if (m.stock <= 0) toast('「' + it.name + '」库存已用完');
-      }
+    /* 统一扣库存：用匹配后的食材库名（dbName）扣减 */
+    var missList = [];
+    var stockHits = [];
+    items.forEach(function (it, idx) {
+      var stName = arr[idx].name; /* 已保存的名字（匹配后=食材库名或豆包名） */
+      var stRes = deductStock(stName, it.amount);
+      if (stRes.ok) stockHits.push(stRes.matched);
+      else missList.push(stRes.matched ? stRes.matched : stName);
     });
-    if (libAll.some(function (f) { return (f.stock || 0) > 0; })) Store.set('foodLib', libAll);
+    if (stockHits.length) toast('已扣库存：' + stockHits.join('、'));
+    if (missList.length) toast('⚠️ 未匹配库存：' + missList.join('、') + '（请去食材库核对名称）');
     this.renderSummary(); this.renderMeals();
     var msg = '✓ 保存完成';
     if (libUsed) msg += ' · ' + libUsed + '项来自食材库';
