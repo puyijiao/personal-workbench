@@ -2099,6 +2099,32 @@ var ALT_GROUPS = [
   { id: 'fiber', name: '🥦 纤维组', items: ['西蓝花', '芹菜', '燕麦'] }
 ];
 
+/* 通用健康食材池（100种内，按类别）——扩大"值得一试"候选，不依赖健康档案登记 */
+var COMMON_GOOD_FOODS = [
+  /* 优质蛋白 */
+  '鸡蛋', '鸡胸肉', '瘦牛肉', '三文鱼', '鲭鱼', '鳕鱼', '虾', '豆腐', '豆浆', '鹰嘴豆', '扁豆', '猪里脊', '虾仁',
+  /* 蔬菜 */
+  '西蓝花', '菠菜', '芹菜', '胡萝卜', '番茄', '黄瓜', '冬瓜', '南瓜', '山药', '白萝卜', '莲藕', '芦笋', '紫甘蓝', '油菜', '生菜', '油麦菜', '娃娃菜', '苦瓜', '丝瓜', '茄子', '菌菇', '香菇', '金针菇', '木耳', '海带', '紫菜',
+  /* 粗粮碳水 */
+  '燕麦', '糙米', '小米', '藜麦', '红薯', '紫薯', '玉米', '荞麦', '薏米', '全麦面包',
+  /* 水果（温和型为主） */
+  '苹果', '梨', '蓝莓', '草莓', '猕猴桃', '橙子', '柚子', '木瓜', '香蕉', '火龙果', '葡萄', '樱桃', '桃子', '李子',
+  /* 坚果种子 */
+  '核桃', '杏仁', '腰果', '花生', '芝麻', '南瓜籽', '亚麻籽',
+  /* 豆类 */
+  '红豆', '绿豆', '黑豆', '黄豆',
+  /* 茶饮滋补 */
+  '红枣', '枸杞', '桂圆', '姜茶', '菊花茶', '绿茶', '蜂蜜', '莲子', '百合', '银耳',
+  /* 优质脂肪 */
+  '橄榄油', '牛油果', '深海鱼油'
+];
+
+/* 通用食材池的"温和属性"：标记哪些适合体质敏感（如脾胃虚弱） */
+var FOOD_MILD = {
+  '苹果': 1, '梨': 1, '南瓜': 1, '山药': 1, '小米': 1, '燕麦': 1, '红薯': 1, '胡萝卜': 1, '白萝卜': 1, '冬瓜': 1,
+  '西蓝花': 1, '菠菜': 1, '豆腐': 1, '鸡蛋': 1, '鲈鱼': 1, '莲藕': 1, '银耳': 1, '百合': 1, '莲子': 1, '红枣': 1
+};
+
 var Health = {
   render: function () { this.renderAdvice(); this.renderLong(); this.renderHabitsList(); this.renderShort(); },
   renderLong: function () {
@@ -2343,15 +2369,40 @@ var Health = {
     var splitItems = function (s) {
       return s.split(/[、，,]/).map(function (x) { return x.replace(/[（(].*?[)）]/g, '').trim(); }).filter(function (x) { return x.length > 0; });
     };
+    /* 候选池：通用食材池 + 规则词（合并去重），过滤排除项/习惯/限制/已吃/有货 */
+    var habitRestricts = [];
+    habits.forEach(function (hb) { if (hb.restrict) habitRestricts.push(hb.restrict); });
+    var restricted = function (food) {
+      return habitRestricts.some(function (r) {
+        return r.split(/[、，,;；]/).some(function (w) {
+          w = w.replace(/[（(].*?[)）]/g, '').trim();
+          if (!w) return false;
+          return food.indexOf(w) !== -1 || w.indexOf(food) !== -1;
+        });
+      });
+    };
+    /* 规则词候选（原有的） */
     allGood.forEach(function (g) {
       splitItems(g).forEach(function (sub) {
         if (isExcluded(sub)) return;
         if (inHabits(sub)) return;
-        /* 仓库有货 → 不用推荐买 */
+        if (restricted(sub)) return;
         var inStock = lib.some(function (lf) { return (lf.stock || 0) > 0 && matched(lf.name, [sub]); });
         if (inStock) return;
         if (tryNew.indexOf(sub) === -1) tryNew.push(sub);
       });
+    });
+    /* 通用食材池候选（补充：未出现在规则里但营养好，且没被限制） */
+    COMMON_GOOD_FOODS.forEach(function (f) {
+      if (tryNew.indexOf(f) !== -1) return;
+      if (isExcluded(f)) return;
+      if (inHabits(f)) return;
+      if (restricted(f)) return;
+      var inStock = lib.some(function (lf) { return (lf.stock || 0) > 0 && matched(lf.name, [f]); });
+      if (inStock) return;
+      /* 已吃过的就不再"值得一试"（转为值得多买），但30天没吃过才推荐 */
+      if (eatenList.some(function (e) { return matched(e, [f]); })) return;
+      tryNew.push(f);
     });
     /* 低库存提醒：有货但低于阈值（stockLow） */
     lib.forEach(function (lf) {
@@ -2586,7 +2637,10 @@ var Health = {
         (hb.time ? '<span class="hi-tag">' + escape(hb.time) + '</span>' : '') +
         '<div class="hi-ops"><button class="dh-op del" data-action="del-health-habit" data-id="' + hb.id + '" title="删除">🗑</button></div>' +
         '</div>' +
-        (hb.note ? '<div class="hi-body"><div class="hi-row">📝 ' + escape(hb.note) + '</div></div>' : '') +
+        '<div class="hi-body">' +
+        (hb.restrict ? '<div class="hi-row bad">🚫 限制：' + escape(hb.restrict) + '</div>' : '') +
+        (hb.note ? '<div class="hi-row">📝 ' + escape(hb.note) + '</div>' : '') +
+        '</div>' +
         '</div>';
     }).join('');
   },
@@ -2595,6 +2649,7 @@ var Health = {
     openModal('添加习惯性食物/茶饮',
       '<div class="field"><label>名称</label><input id="hh-name" placeholder="如：红枣生姜枸杞茶" /></div>' +
       '<div class="field"><label>时段</label><input id="hh-time" placeholder="如：上午 / 下午2点 / 睡前" /></div>' +
+      '<div class="field"><label>忌口/限制（选填）</label><input id="hh-restrict" placeholder="如：少吃水果、生冷（这些将不再推荐）" /></div>' +
       '<div class="field"><label>备注</label><input id="hh-note" placeholder="如：每天一杯 / 天冷时喝" /></div>' +
       '<div class="hint">登记后会在「今日饮食建议」中展示，并结合健康档案给出时段建议</div>',
       '<button class="btn" data-action="modal-cancel">取消</button><button class="btn primary" id="hh-save">保存</button>',
@@ -2603,7 +2658,7 @@ var Health = {
           var name = $('#hh-name').value.trim();
           if (!name) { toast('请填写名称'); return; }
           var list = Store.get('healthHabits', []);
-          list.push({ id: uid(), name: name, time: $('#hh-time').value.trim(), note: $('#hh-note').value.trim() });
+          list.push({ id: uid(), name: name, time: $('#hh-time').value.trim(), restrict: $('#hh-restrict').value.trim(), note: $('#hh-note').value.trim() });
           Store.set('healthHabits', list);
           closeModal(); self.render(); toast('已添加习惯');
         };
