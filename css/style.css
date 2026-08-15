@@ -547,3 +547,7 @@ table tr:hover td{background:#f8fafc}
 .advice-line.bad{background:rgba(239,68,68,.08);border-left:3px solid #ef4444;border-radius:6px;padding:8px 10px;margin:4px 0}
 .advice-line.bad .al-text b{color:#dc2626}
 .advice-line.warn .al-text b{color:#dc2626}
+/* 替代组问答 */
+.advice-line.alt-ask{background:rgba(99,102,241,.06);border-left:3px solid var(--brand);border-radius:6px;padding:8px 10px;margin:4px 0}
+.alt-btn{display:inline-block;margin:4px 6px 0 0;padding:4px 12px;border-radius:14px;background:var(--card);border:1px solid var(--line);font-size:12px;color:var(--ink)}
+.alt-btn:hover{background:rgba(99,102,241,.1);border-color:var(--brand);color:var(--brand)}
