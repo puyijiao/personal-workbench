@@ -2486,10 +2486,16 @@ var Health = {
       var nutriTable = GROUP_NUTRI[grp.id] || {};
       items.forEach(function (it) {
         var g = 0;
-        diet30.forEach(function (d) { if (matched(d.name, [it])) g += (+d.amount || 0); });
+        var dishList = [];
+        diet30.forEach(function (d) {
+          if (matched(d.name, [it])) {
+            g += (+d.amount || 0);
+            if (dishList.indexOf(d.name) === -1) dishList.push(d.name);
+          }
+        });
         if (g > 0) {
           var n = isWeight ? g : (g / 100) * (nutriTable[it] || 0);
-          eaten.push({ name: it, gram: g, nutri: n });
+          eaten.push({ name: it, gram: g, dishes: dishList });
           totalG += g;
           totalNutri += n;
         }
@@ -2522,7 +2528,7 @@ var Health = {
     groupStats.forEach(function (gs) {
       var ic = gs.level === 'good' ? '✅' : (gs.level === 'low' ? '⚠️' : '🔴');
       var label = gs.level === 'good' ? '吃够了' : (gs.level === 'low' ? '吃少了' : '没怎么吃');
-      var detail = gs.eaten.length ? gs.eaten.slice(0, 3).map(function (e) { return e.name + '×' + e.gram + 'g'; }).join('、') : '—';
+      var detail = gs.eaten.length ? gs.eaten.slice(0, 3).map(function (e) { return e.name + '×' + e.gram + 'g（' + e.dishes.join('+') + '）'; }).join('、') : '—';
       var barCls = gs.level === 'good' ? 'ok' : (gs.level === 'low' ? 'low' : 'over');
       statHtml += '<div class="group-stat ' + gs.level + '">' +
         '<div class="gs-head"><span class="al-ic">' + ic + '</span><b>' + gs.name + '</b>' +
