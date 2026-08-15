@@ -82,6 +82,7 @@ const Store = {
       healthShortTerm: [],
       healthExcludes: [],
       healthHabits: [],
+      altChoices: [],
       workbenchName: '个人工作台'
     };
     for (const k in defaults) {
