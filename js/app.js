@@ -2480,10 +2480,6 @@ var Health = {
         (tryNew.length > 4 ? '<button class="btn sm alt-btn" data-action="rec-shuffle" style="float:right">🔄 换一批</button>' : '') +
         '<div style="clear:both"></div></div>';
       html += statHtml;
-      if (buyGood.length) {
-        html += '<div class="advice-line good"><span class="al-ic">🟢</span><span class="al-text"><b>值得多买（有货可吃）：</b>' +
-          buyGood.slice(0, 4).map(function (x) { return x.name + '（' + x.count + '次）'; }).join('、') + '</span></div>';
-      }
       if (lowStock.length) {
         html += '<div class="advice-line warn"><span class="al-ic">🚨</span><span class="al-text"><b>库存快没了，该补货：</b>' +
           lowStock.join('、') + '</span></div>';
