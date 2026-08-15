@@ -2549,22 +2549,8 @@ var Health = {
       return aw - bw;
     });
 
-    /* 渲染摄入统计（按克重/营养素 vs 个性化目标） */
+    /* 渲染摄入统计（5组卡片已取消，仅保留计算用于弱组优先推荐） */
     var statHtml = '';
-    statHtml += '<div class="advice-sec-title">📊 营养分类摄入 <span class="hint">（30天 · 基于你' + needs.weight + 'kg/' + needs.height + 'cm的身体数据）</span></div>';
-    groupStats.forEach(function (gs) {
-      var ic = gs.level === 'good' ? '✅' : (gs.level === 'low' ? '⚠️' : '🔴');
-      var label = gs.level === 'good' ? '吃够了' : (gs.level === 'low' ? '吃少了' : '没怎么吃');
-      var detail = gs.eaten.length ? gs.eaten.slice(0, 3).map(function (e) { return e.name + '×' + e.gram + 'g（' + e.dishes.join('+') + '）'; }).join('、') : '—';
-      var barCls = gs.level === 'good' ? 'ok' : (gs.level === 'low' ? 'low' : 'over');
-      statHtml += '<div class="group-stat ' + gs.level + '">' +
-        '<div class="gs-head"><span class="al-ic">' + ic + '</span><b>' + gs.name + '</b>' +
-        '<span class="gs-pct">' + Math.round(gs.actual) + '/' + gs.target + gs.unit + '（' + gs.pct + '%）</span>' +
-        '<span class="gs-label">' + label + '</span></div>' +
-        '<div class="dn-bar"><i class="' + barCls + '" style="width:' + Math.min(gs.pct, 100) + '%"></i></div>' +
-        '<div class="gs-detail">' + (detail !== '—' ? detail : '') + '</div>' +
-        '</div>';
-    });
     /* 搭配提示：优先用仓库里有货/吃过的食材找搭配 */
     var pairs = Store.get('foodPairs', []);
     var pairHits = [];
