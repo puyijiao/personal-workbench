@@ -45,6 +45,7 @@ document.addEventListener('click', function (e) {
       case 'add-health-habit': Health.addHabit(); break;
       case 'del-health-habit': Health.delHabit(id); break;
       case 'alt-choose': Health.altChoose(btn.dataset.gid, btn.dataset.item); break;
+      case 'rec-shuffle': Health.shuffleRec(); break;
       case 'rename-workbench': renameWorkbench(); break;
       /* 本职工作 */
       case 'add-task': Work.editTask(); break;
@@ -2349,7 +2350,6 @@ var Health = {
         /* 仓库有货 → 不用推荐买 */
         var inStock = lib.some(function (lf) { return (lf.stock || 0) > 0 && matched(lf.name, [sub]); });
         if (inStock) return;
-        if (tryNew.length >= 4) return;
         if (tryNew.indexOf(sub) === -1) tryNew.push(sub);
       });
     });
@@ -2427,7 +2427,9 @@ var Health = {
     var html = '';
     var hasAny = buyGood.length || badEaten.length || tryNew.length || lowStock.length || altHtml;
     if (hasAny) {
-      html += '<div class="advice-sec-title">🛒 食物采购顾问 <span class="hint">（基于30天记录+库存）</span></div>';
+      html += '<div class="advice-sec-title">🛒 食物采购顾问 <span class="hint">（基于30天记录+库存）</span>' +
+        (tryNew.length > 4 ? '<button class="btn sm alt-btn" data-action="rec-shuffle" style="float:right">🔄 换一批</button>' : '') +
+        '<div style="clear:both"></div></div>';
       if (buyGood.length) {
         html += '<div class="advice-line good"><span class="al-ic">🟢</span><span class="al-text"><b>值得多买（有货可吃）：</b>' +
           buyGood.slice(0, 4).map(function (x) { return x.name + '（' + x.count + '次）'; }).join('、') + '</span></div>';
@@ -2441,8 +2443,16 @@ var Health = {
           badEaten.slice(0, 4).map(function (x) { return x.name + '（' + x.count + '次）'; }).join('、') + '，建议逐步减少</span></div>';
       }
       if (tryNew.length) {
+        /* 换一批：按偏移量轮转取4个 */
+        var offset = Store.get('recOffset', 0) || 0;
+        var shown = [];
+        if (tryNew.length <= 4) {
+          shown = tryNew;
+        } else {
+          for (var k = 0; k < 4; k++) shown.push(tryNew[(offset + k) % tryNew.length]);
+        }
         html += '<div class="advice-line good"><span class="al-ic">🆕</span><span class="al-text"><b>值得一试（没买过，建议入手）：</b>' +
-          tryNew.join('、') + '</span></div>';
+          shown.join('、') + '</span></div>';
       }
       html += altHtml;
       if (pairHits.length) {
@@ -2623,6 +2633,13 @@ var Health = {
     Store.set('altChoices', list);
     self.render();
     toast(item === '__any__' ? '好，以后轮着买 😊' : '已记住选「' + item + '」，买入后我来推荐搭配');
+  },
+  /* 换一批：偏移量+4，重新渲染推荐 */
+  shuffleRec: function () {
+    var offset = (Store.get('recOffset', 0) || 0) + 4;
+    Store.set('recOffset', offset);
+    this.render();
+    toast('已换一批推荐');
   }
 };
 
