@@ -2091,12 +2091,12 @@ var HEALTH_RULES = {
 
 /* 替代组：功效相近、可选其一的食物（问答机制用） */
 var ALT_GROUPS = [
-  { id: 'eyes', name: '👀 护眼组', items: ['蓝莓', '枸杞', '胡萝卜'] },
-  { id: 'iron', name: '🩸 补铁组', items: ['菠菜', '黑木耳', '猪肝'] },
-  { id: 'vitc', name: '🤧 维C组', items: ['橙子', '猕猴桃', '草莓'] },
-  { id: 'sleep', name: '😴 助眠组', items: ['牛奶', '香蕉', '莲子'] },
-  { id: 'calcium', name: '🥛 钙质组', items: ['牛奶', '豆腐', '芝麻'] },
-  { id: 'fiber', name: '🥦 纤维组', items: ['西蓝花', '芹菜', '燕麦'] }
+  { id: 'eyes', name: '👀 护眼组', items: ['蓝莓', '枸杞', '胡萝卜', '菊花茶', '菠菜'] },
+  { id: 'iron', name: '🩸 补铁组', items: ['菠菜', '黑木耳', '猪肝', '红枣', '瘦肉'] },
+  { id: 'vitc', name: '🤧 维C组', items: ['橙子', '猕猴桃', '草莓', '番茄', '甜椒'] },
+  { id: 'calcium', name: '🥛 钙质组', items: ['牛奶', '豆腐', '芝麻', '小鱼干', '酸奶'] },
+  { id: 'fiber', name: '🥦 纤维组', items: ['西蓝花', '芹菜', '燕麦', '红薯', '糙米'] },
+  { id: 'sleep', name: '😴 助眠组', items: ['牛奶', '香蕉', '莲子'] }
 ];
 
 /* 通用健康食材池（100种内，按类别）——扩大"值得一试"候选，不依赖健康档案登记 */
@@ -2413,34 +2413,43 @@ var Health = {
       }
     });
     /* ===== 替代组问答机制 =====
-       未选过的组：每批只显示2组，跟随"换一批"真正切换（offset 每+4 切一批）
-       已选过有状态（已买/用完/追问）的组：始终显示（重要不隐藏） */
+       除助眠组外所有组都参与问答；每批显示2组+组内选项也轮转（跟随换一批） */
     var altChoices = Store.get('altChoices', []); /* [{gid, chosen, date, state}] state: chosen/bought/used/askAgain */
     var altHtml = '';
-    var batchIdx = Math.floor(((Store.get('recOffset', 0) || 0) / 4) % Math.max(Math.ceil(ALT_GROUPS.length / 2), 1));
-    var activeGroupIds = {}; /* 本轮显示的未选组 */
-    for (var gi = 0; gi < 2; gi++) {
-      var gIdx = (batchIdx * 2 + gi) % ALT_GROUPS.length;
-      activeGroupIds[ALT_GROUPS[gIdx].id] = true;
+    var altGroupsActive = ALT_GROUPS.filter(function (g) { return g.id !== 'sleep'; });
+    var offset = Store.get('recOffset', 0) || 0;
+    var batchSize = 2;
+    var batchIdx = Math.floor(offset / 4) % Math.max(Math.ceil(altGroupsActive.length / batchSize), 1);
+    var activeGroupIds = {}; /* 本轮显示的组 */
+    for (var gi = 0; gi < batchSize; gi++) {
+      var gIdx = (batchIdx * batchSize + gi) % altGroupsActive.length;
+      activeGroupIds[altGroupsActive[gIdx].id] = true;
     }
-    ALT_GROUPS.forEach(function (grp) {
-      /* 该组里有哪些食物命中 allGood（对你好） */
-      var groupGood = grp.items.filter(function (it) {
+    altGroupsActive.forEach(function (grp) {
+      /* 该组候选：排除项/习惯/限制 → 过滤 */
+      var groupCands = grp.items.filter(function (it) {
         if (isExcluded(it)) return false;
         if (inHabits(it)) return false;
-        return allGood.some(function (g) { return matched(it, [g]); });
+        if (restricted(it)) return false;
+        return true;
       });
-      if (!groupGood.length) return;
+      if (!groupCands.length) return;
       var rec = altChoices.find(function (c) { return c.gid === grp.id; });
       if (!rec) {
-        /* 未选过：只有在本轮激活的组里才弹问答 */
+        /* 未选过：只在本轮激活的组里弹问答；组内选项也轮转（每次换一批偏移1个） */
         if (!activeGroupIds[grp.id]) return;
-        var needAsk = groupGood.filter(function (it) {
+        var cands = groupCands.filter(function (it) {
           return !lib.some(function (lf) { return (lf.stock || 0) > 0 && matched(lf.name, [it]); });
         });
-        if (needAsk.length >= 2) {
+        if (cands.length >= 2) {
+          /* 组内轮转：按 offset 偏移取前3个 */
+          var shift = Math.floor(offset / 4) % cands.length;
+          var shownOpts = [];
+          for (var oi = 0; oi < Math.min(3, cands.length); oi++) {
+            shownOpts.push(cands[(shift + oi) % cands.length]);
+          }
           altHtml += '<div class="advice-line alt-ask"><span class="al-ic">💬</span><span class="al-text"><b>' + grp.name + '功效相近，先买哪个？</b><br>' +
-            needAsk.map(function (it) { return '<button class="btn sm alt-btn" data-action="alt-choose" data-gid="' + grp.id + '" data-item="' + escape(it) + '">' + escape(it) + '</button>'; }).join(' ') +
+            shownOpts.map(function (it) { return '<button class="btn sm alt-btn" data-action="alt-choose" data-gid="' + grp.id + '" data-item="' + escape(it) + '">' + escape(it) + '</button>'; }).join(' ') +
             '<button class="btn sm alt-btn" data-action="alt-choose" data-gid="' + grp.id + '" data-item="__any__">都可以，轮着买</button>' +
             '</span></div>';
         }
