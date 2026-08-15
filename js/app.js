@@ -44,7 +44,6 @@ document.addEventListener('click', function (e) {
       case 'health-long-done': Health.doneShort(id); break;
       case 'add-health-habit': Health.addHabit(); break;
       case 'del-health-habit': Health.delHabit(id); break;
-      case 'alt-choose': Health.altChoose(btn.dataset.gid, btn.dataset.item); break;
       case 'rec-shuffle': Health.shuffleRec(); break;
       case 'rename-workbench': renameWorkbench(); break;
       /* 本职工作 */
@@ -2412,76 +2411,57 @@ var Health = {
         lowStock.push(lf.name + '（剩' + s + 'g）');
       }
     });
-    /* ===== 替代组问答机制 =====
-       除助眠组外所有组都参与问答；每批显示2组+组内选项也轮转（跟随换一批） */
-    var altChoices = Store.get('altChoices', []); /* [{gid, chosen, date, state}] state: chosen/bought/used/askAgain */
-    var altHtml = '';
+    /* ===== 营养分类摄入统计（5组） =====
+       统计30天内每组食物吃了多少次 → 显示吃得好/吃少了/没吃
+       吃得少的组 → 其食物优先排进"值得一试" */
     var altGroupsActive = ALT_GROUPS.filter(function (g) { return g.id !== 'sleep'; });
-    var offset = Store.get('recOffset', 0) || 0;
-    var batchSize = 2;
-    var batchIdx = Math.floor(offset / 4) % Math.max(Math.ceil(altGroupsActive.length / batchSize), 1);
-    var activeGroupIds = {}; /* 本轮显示的组 */
-    for (var gi = 0; gi < batchSize; gi++) {
-      var gIdx = (batchIdx * batchSize + gi) % altGroupsActive.length;
-      activeGroupIds[altGroupsActive[gIdx].id] = true;
-    }
-    altGroupsActive.forEach(function (grp) {
-      /* 该组候选：排除项/习惯/限制 → 过滤 */
-      var groupCands = grp.items.filter(function (it) {
+    var groupStats = altGroupsActive.map(function (grp) {
+      var items = grp.items.filter(function (it) {
         if (isExcluded(it)) return false;
         if (inHabits(it)) return false;
         if (restricted(it)) return false;
         return true;
       });
-      if (!groupCands.length) return;
-      var rec = altChoices.find(function (c) { return c.gid === grp.id; });
-      if (!rec) {
-        /* 未选过：只在本轮激活的组里弹问答；组内选项也轮转（每次换一批偏移1个） */
-        if (!activeGroupIds[grp.id]) return;
-        var cands = groupCands.filter(function (it) {
-          return !lib.some(function (lf) { return (lf.stock || 0) > 0 && matched(lf.name, [it]); });
+      /* 统计30天内该组每种食物吃了多少次 */
+      var eaten = [];
+      var total = 0;
+      items.forEach(function (it) {
+        var cnt = 0;
+        eatenList.forEach(function (f) { if (matched(f, [it])) cnt += countMap[f]; });
+        if (cnt > 0) { eaten.push({ name: it, count: cnt }); total += cnt; }
+      });
+      eaten.sort(function (a, b) { return b.count - a.count; });
+      var level = total === 0 ? 'none' : (total >= 4 ? 'good' : 'low');
+      return { id: grp.id, name: grp.name, items: items, eaten: eaten, total: total, level: level };
+    });
+
+    /* 吃得少的组 → 其未吃过的食物优先进入值得一试（排前面） */
+    var weakFoods = [];
+    groupStats.forEach(function (gs) {
+      if (gs.level !== 'good') {
+        gs.items.forEach(function (it) {
+          if (weakFoods.indexOf(it) === -1) weakFoods.push(it);
         });
-        if (cands.length >= 2) {
-          /* 组内轮转：按 offset 偏移取前3个 */
-          var shift = Math.floor(offset / 4) % cands.length;
-          var shownOpts = [];
-          for (var oi = 0; oi < Math.min(3, cands.length); oi++) {
-            shownOpts.push(cands[(shift + oi) % cands.length]);
-          }
-          altHtml += '<div class="advice-line alt-ask"><span class="al-ic">💬</span><span class="al-text"><b>' + grp.name + '功效相近，先买哪个？</b><br>' +
-            shownOpts.map(function (it) { return '<button class="btn sm alt-btn" data-action="alt-choose" data-gid="' + grp.id + '" data-item="' + escape(it) + '">' + escape(it) + '</button>'; }).join(' ') +
-            '<button class="btn sm alt-btn" data-action="alt-choose" data-gid="' + grp.id + '" data-item="__any__">都可以，轮着买</button>' +
-            '</span></div>';
-        }
-        return;
-      }
-      /* 已选过：检查状态 */
-      var chosen = rec.chosen;
-      var stockOf = lib.find(function (lf) { return (lf.stock || 0) > 0 && matched(lf.name, [chosen]); });
-      if (stockOf) {
-        /* 有库存 → 已买，推荐搭配 */
-        var paired = pairs.filter(function (p) { return (matched(p.a, [chosen]) || matched(p.b, [chosen])) && pairHits.length < 3; });
-        if (paired.length) {
-          altHtml += '<div class="advice-line good"><span class="al-ic">🤝</span><span class="al-text"><b>' + escape(chosen) + '</b> 已入库存 ✓ 试试搭配：' +
-            paired.map(function (p) { return escape(p.a) + '+' + escape(p.b); }).join('、') + '</span></div>';
-        }
-      } else if (rec.state === 'used') {
-        /* 用完 → 问重新2选1 or 换别的 */
-        altHtml += '<div class="advice-line alt-ask"><span class="al-ic">💬</span><span class="al-text"><b>' + escape(chosen) + ' 吃完了，还要补吗？</b><br>' +
-          grp.items.filter(function (it) { return it !== chosen && !isExcluded(it); }).map(function (it) { return '<button class="btn sm alt-btn" data-action="alt-choose" data-gid="' + grp.id + '" data-item="' + escape(it) + '">换' + escape(it) + '</button>'; }).join(' ') +
-          '<button class="btn sm alt-btn" data-action="alt-choose" data-gid="' + grp.id + '" data-item="' + escape(chosen) + '">继续买' + escape(chosen) + '</button>' +
-          '</span></div>';
-      } else {
-        /* 已选未买：7天内没买 → 追问 */
-        var daysSince = rec.date ? daysBetween(rec.date, t) : 999;
-        if (daysSince >= 7) {
-          altHtml += '<div class="advice-line alt-ask"><span class="al-ic">💬</span><span class="al-text"><b>' + escape(chosen) + ' 还没买哦（已选' + daysSince + '天），还想要吗？</b><br>' +
-            '<button class="btn sm alt-btn" data-action="alt-choose" data-gid="' + grp.id + '" data-item="' + escape(chosen) + '">还要' + escape(chosen) + '</button>' +
-            grp.items.filter(function (it) { return it !== chosen && !isExcluded(it); }).map(function (it) { return '<button class="btn sm alt-btn" data-action="alt-choose" data-gid="' + grp.id + '" data-item="' + escape(it) + '">换' + escape(it) + '</button>'; }).join(' ') +
-            '</span></div>';
-        }
       }
     });
+    tryNew.sort(function (a, b) {
+      var aw = weakFoods.indexOf(a) !== -1 ? 0 : 1;
+      var bw = weakFoods.indexOf(b) !== -1 ? 0 : 1;
+      return aw - bw;
+    });
+
+    /* 渲染摄入统计 */
+    var statHtml = '';
+    var statAny = groupStats.some(function (gs) { return gs.level !== 'none' || true; });
+    if (statAny) {
+      statHtml += '<div class="advice-sec-title">📊 营养分类摄入 <span class="hint">（30天）</span></div>';
+      groupStats.forEach(function (gs) {
+        var ic = gs.level === 'good' ? '✅' : (gs.level === 'low' ? '⚠️' : '🔴');
+        var label = gs.level === 'good' ? '吃得不错' : (gs.level === 'low' ? '吃少了' : '没怎么吃');
+        var detail = gs.eaten.length ? gs.eaten.slice(0, 3).map(function (e) { return e.name + '×' + e.count; }).join('、') : '—';
+        statHtml += '<div class="advice-line ' + (gs.level === 'good' ? 'good' : 'bad') + '"><span class="al-ic">' + ic + '</span><span class="al-text"><b>' + gs.name + '</b>（' + label + '）' + (detail !== '—' ? '：' + detail : '') + '</span></div>';
+      });
+    }
     /* 搭配提示：优先用仓库里有货/吃过的食材找搭配 */
     var pairs = Store.get('foodPairs', []);
     var pairHits = [];
@@ -2494,11 +2474,12 @@ var Health = {
     });
 
     var html = '';
-    var hasAny = buyGood.length || badEaten.length || tryNew.length || lowStock.length || altHtml;
+    var hasAny = buyGood.length || badEaten.length || tryNew.length || lowStock.length || statHtml;
     if (hasAny) {
       html += '<div class="advice-sec-title">🛒 食物采购顾问 <span class="hint">（基于30天记录+库存）</span>' +
         (tryNew.length > 4 ? '<button class="btn sm alt-btn" data-action="rec-shuffle" style="float:right">🔄 换一批</button>' : '') +
         '<div style="clear:both"></div></div>';
+      html += statHtml;
       if (buyGood.length) {
         html += '<div class="advice-line good"><span class="al-ic">🟢</span><span class="al-text"><b>值得多买（有货可吃）：</b>' +
           buyGood.slice(0, 4).map(function (x) { return x.name + '（' + x.count + '次）'; }).join('、') + '</span></div>';
@@ -2512,7 +2493,7 @@ var Health = {
           badEaten.slice(0, 4).map(function (x) { return x.name + '（' + x.count + '次）'; }).join('、') + '，建议逐步减少</span></div>';
       }
       if (tryNew.length) {
-        /* 换一批：按偏移量轮转取4个 */
+        /* 换一批：按偏移量轮转取4个（吃得少的组优先排前面） */
         var offset = Store.get('recOffset', 0) || 0;
         var shown = [];
         if (tryNew.length <= 4) {
@@ -2523,7 +2504,6 @@ var Health = {
         html += '<div class="advice-line good"><span class="al-ic">🆕</span><span class="al-text"><b>值得一试（没买过，建议入手）：</b>' +
           shown.join('、') + '</span></div>';
       }
-      html += altHtml;
       if (pairHits.length) {
         html += '<div class="advice-sec-title">🤝 搭配建议</div>';
         pairHits.forEach(function (p) {
@@ -2689,23 +2669,6 @@ var Health = {
       Store.set('healthHabits', Store.get('healthHabits', []).filter(function (h) { return h.id !== id; }));
       self.render(); toast('已删除');
     }, { danger: true, okText: '删除' });
-  },
-  /* ===== 替代组问答 ===== */
-  altChoose: function (gid, item) {
-    var self = this;
-    var list = Store.get('altChoices', []);
-    var rec = list.find(function (c) { return c.gid === gid; });
-    var t = today();
-    if (rec) {
-      rec.chosen = item === '__any__' ? '__any__' : item;
-      rec.date = t;
-      rec.state = 'chosen';
-    } else {
-      list.push({ gid: gid, chosen: item === '__any__' ? '__any__' : item, date: t, state: 'chosen' });
-    }
-    Store.set('altChoices', list);
-    self.render();
-    toast(item === '__any__' ? '好，以后轮着买 😊' : '已记住选「' + item + '」，买入后我来推荐搭配');
   },
   /* 换一批：偏移量+4，重新渲染推荐 */
   shuffleRec: function () {
