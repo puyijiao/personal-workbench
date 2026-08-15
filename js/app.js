@@ -2583,13 +2583,6 @@ var Health = {
         (tryNew.length > 4 ? '<button class="btn sm alt-btn" data-action="rec-shuffle" style="float:right">🔄 换一批</button>' : '') +
         '<div style="clear:both"></div></div>';
       html += statHtml;
-      /* 其他食物（未归组，如实显示） */
-      if (otherFoods.length) {
-        html += '<div class="advice-sec-title">📋 其他食物 <span class="hint">（不在5组分类内，仅供参考）</span></div>' +
-          '<div class="advice-line"><span class="al-ic">🍽</span><span class="al-text">' +
-          otherFoods.slice(0, 12).map(function (o) { return escape(o.name) + '×' + Math.round(o.gram) + 'g'; }).join('、') +
-          '</span></div>';
-      }
       if (lowStock.length) {
         html += '<div class="advice-line warn"><span class="al-ic">🚨</span><span class="al-text"><b>库存快没了，该补货：</b>' +
           lowStock.join('、') + '</span></div>';
