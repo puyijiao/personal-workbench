@@ -2412,13 +2412,18 @@ var Health = {
         lowStock.push(lf.name + '（剩' + s + 'g）');
       }
     });
-    /* ===== 替代组问答机制（组顺序跟随"换一批"轮转） ===== */
+    /* ===== 替代组问答机制 =====
+       未选过的组：每批只显示2组，跟随"换一批"真正切换（offset 每+4 切一批）
+       已选过有状态（已买/用完/追问）的组：始终显示（重要不隐藏） */
     var altChoices = Store.get('altChoices', []); /* [{gid, chosen, date, state}] state: chosen/bought/used/askAgain */
     var altHtml = '';
-    var altOffset = (Store.get('recOffset', 0) || 0) % Math.max(ALT_GROUPS.length, 1);
-    var altGroupsOrder = ALT_GROUPS.slice(altOffset).concat(ALT_GROUPS.slice(0, altOffset));
-    var askShown = 0; /* 未选问答最多显示2个，跟随换一批轮转 */
-    altGroupsOrder.forEach(function (grp) {
+    var batchIdx = Math.floor(((Store.get('recOffset', 0) || 0) / 4) % Math.max(Math.ceil(ALT_GROUPS.length / 2), 1));
+    var activeGroupIds = {}; /* 本轮显示的未选组 */
+    for (var gi = 0; gi < 2; gi++) {
+      var gIdx = (batchIdx * 2 + gi) % ALT_GROUPS.length;
+      activeGroupIds[ALT_GROUPS[gIdx].id] = true;
+    }
+    ALT_GROUPS.forEach(function (grp) {
       /* 该组里有哪些食物命中 allGood（对你好） */
       var groupGood = grp.items.filter(function (it) {
         if (isExcluded(it)) return false;
@@ -2428,12 +2433,12 @@ var Health = {
       if (!groupGood.length) return;
       var rec = altChoices.find(function (c) { return c.gid === grp.id; });
       if (!rec) {
-        /* 未选过：如果组里有 ≥2 个候选且都在"值得一试"范围（没库存）→ 弹问答 */
+        /* 未选过：只有在本轮激活的组里才弹问答 */
+        if (!activeGroupIds[grp.id]) return;
         var needAsk = groupGood.filter(function (it) {
           return !lib.some(function (lf) { return (lf.stock || 0) > 0 && matched(lf.name, [it]); });
         });
-        if (needAsk.length >= 2 && askShown < 2) {
-          askShown++;
+        if (needAsk.length >= 2) {
           altHtml += '<div class="advice-line alt-ask"><span class="al-ic">💬</span><span class="al-text"><b>' + grp.name + '功效相近，先买哪个？</b><br>' +
             needAsk.map(function (it) { return '<button class="btn sm alt-btn" data-action="alt-choose" data-gid="' + grp.id + '" data-item="' + escape(it) + '">' + escape(it) + '</button>'; }).join(' ') +
             '<button class="btn sm alt-btn" data-action="alt-choose" data-gid="' + grp.id + '" data-item="__any__">都可以，轮着买</button>' +
