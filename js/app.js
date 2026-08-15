@@ -2515,6 +2515,25 @@ var Health = {
       return { id: grp.id, name: grp.name, items: items, eaten: eaten, totalG: totalG, actual: actual, target: target, unit: isWeight ? 'g' : (grp.id === 'fiber' ? 'g' : 'mg'), pct: pct, level: level, isWeight: isWeight };
     });
 
+    /* ===== 其他食物：未归入5组的（如实显示，不参与营养评判） =====
+       复合调味食物（凉皮卷/汉堡/麻辣烫等一份不明量的）跳过不显示 */
+    var COMPOSITE_FOODS = ['凉皮', '卷', '汉堡', '披萨', '三明治', '麻辣烫', '盖浇', '炒饭', '盒饭', '套餐', '米线', '螺蛳粉', '外卖', '快餐', '料理包', '预制菜', '火锅', '烧烤', '串', '拌饭', '便当', '蛋糕', '奶茶', '零食', '饼干', '薯片', '糖果', '冰淇淋'];
+    var otherFoods = [];
+    var eatenAllNames = {}; /* 已归组的食物名（含原菜名） */
+    groupStats.forEach(function (gs) {
+      gs.eaten.forEach(function (e) {
+        e.dishes.forEach(function (dn) { eatenAllNames[dn] = true; });
+      });
+    });
+    diet30.forEach(function (d) {
+      if (eatenAllNames[d.name]) return;
+      if (COMPOSITE_FOODS.some(function (cf) { return d.name.indexOf(cf) !== -1; })) return; /* 复合食物跳过 */
+      var existing = otherFoods.find(function (o) { return o.name === d.name; });
+      if (existing) existing.gram += (+d.amount || 0);
+      else otherFoods.push({ name: d.name, gram: (+d.amount || 0) });
+    });
+    otherFoods.sort(function (a, b) { return b.gram - a.gram; });
+
     /* 吃得少的组 → 其未吃过的食物优先进入值得一试 */
     var weakFoods = [];
     groupStats.forEach(function (gs) {
@@ -2564,6 +2583,13 @@ var Health = {
         (tryNew.length > 4 ? '<button class="btn sm alt-btn" data-action="rec-shuffle" style="float:right">🔄 换一批</button>' : '') +
         '<div style="clear:both"></div></div>';
       html += statHtml;
+      /* 其他食物（未归组，如实显示） */
+      if (otherFoods.length) {
+        html += '<div class="advice-sec-title">📋 其他食物 <span class="hint">（不在5组分类内，仅供参考）</span></div>' +
+          '<div class="advice-line"><span class="al-ic">🍽</span><span class="al-text">' +
+          otherFoods.slice(0, 12).map(function (o) { return escape(o.name) + '×' + Math.round(o.gram) + 'g'; }).join('、') +
+          '</span></div>';
+      }
       if (lowStock.length) {
         html += '<div class="advice-line warn"><span class="al-ic">🚨</span><span class="al-text"><b>库存快没了，该补货：</b>' +
           lowStock.join('、') + '</span></div>';
