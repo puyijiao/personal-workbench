@@ -45,7 +45,6 @@ document.addEventListener('click', function (e) {
       case 'add-health-habit': Health.addHabit(); break;
       case 'del-health-habit': Health.delHabit(id); break;
       case 'rec-shuffle': Health.shuffleRec(); break;
-      case 'group-pick': Health.groupPick(btn.dataset.gid, btn.dataset.item); break;
       case 'rename-workbench': renameWorkbench(); break;
       /* 本职工作 */
       case 'add-task': Work.editTask(); break;
@@ -2091,22 +2090,13 @@ var HEALTH_RULES = {
 
 /* 替代组：功效相近、可选其一的食物（问答机制用） */
 var ALT_GROUPS = [
-  { id: 'eyes', name: '👀 护眼组', items: ['蓝莓', '枸杞', '胡萝卜', '菊花茶', '菠菜'], target: 1200, unit: 'g', targetLabel: '30天建议摄入', isWeight: true },
-  { id: 'iron', name: '🩸 补铁组', items: ['菠菜', '黑木耳', '猪肝', '红枣', '瘦肉'], target: 600, unit: 'mg', targetLabel: '30天铁目标(20mg/天)', isWeight: false },
-  { id: 'vitc', name: '🤧 维C组', items: ['橙子', '猕猴桃', '草莓', '番茄', '甜椒'], target: 3000, unit: 'mg', targetLabel: '30天维C目标(100mg/天)', isWeight: false },
-  { id: 'calcium', name: '🥛 钙质组', items: ['牛奶', '豆腐', '芝麻', '小鱼干', '酸奶'], target: 24000, unit: 'mg', targetLabel: '30天钙目标(800mg/天)', isWeight: false },
-  { id: 'fiber', name: '🥦 纤维组', items: ['西蓝花', '芹菜', '燕麦', '红薯', '糙米'], target: 750, unit: 'g', targetLabel: '30天纤维目标(25g/天)', isWeight: false },
+  { id: 'eyes', name: '👀 护眼组', items: ['蓝莓', '枸杞', '胡萝卜', '菊花茶', '菠菜'] },
+  { id: 'iron', name: '🩸 补铁组', items: ['菠菜', '黑木耳', '猪肝', '红枣', '瘦肉'] },
+  { id: 'vitc', name: '🤧 维C组', items: ['橙子', '猕猴桃', '草莓', '番茄', '甜椒'] },
+  { id: 'calcium', name: '🥛 钙质组', items: ['牛奶', '豆腐', '芝麻', '小鱼干', '酸奶'] },
+  { id: 'fiber', name: '🥦 纤维组', items: ['西蓝花', '芹菜', '燕麦', '红薯', '糙米'] },
   { id: 'sleep', name: '😴 助眠组', items: ['牛奶', '香蕉', '莲子'] }
 ];
-
-/* 各组食物的营养素含量（每100g） */
-var GROUP_NUTRI = {
-  eyes: { '蓝莓': 0, '枸杞': 0, '胡萝卜': 0, '菊花茶': 0, '菠菜': 0 },
-  iron: { '菠菜': 2.9, '黑木耳': 97, '猪肝': 22, '红枣': 2.3, '瘦肉': 3 },
-  vitc: { '橙子': 53, '猕猴桃': 62, '草莓': 47, '番茄': 19, '甜椒': 72 },
-  calcium: { '牛奶': 104, '豆腐': 164, '芝麻': 780, '小鱼干': 880, '酸奶': 118 },
-  fiber: { '西蓝花': 1.6, '芹菜': 1.4, '燕麦': 10, '红薯': 1.6, '糙米': 3.4 }
-};
 
 /* 通用健康食材池（100种内，按类别）——扩大"值得一试"候选，不依赖健康档案登记 */
 var COMMON_GOOD_FOODS = [
@@ -2425,8 +2415,6 @@ var Health = {
        统计30天内每组食物吃了多少次 → 显示吃得好/吃少了/没吃
        吃得少的组 → 其食物优先排进"值得一试" */
     var altGroupsActive = ALT_GROUPS.filter(function (g) { return g.id !== 'sleep'; });
-    /* 30天饮食记录（克重+名字） */
-    var diet30 = Store.get('diet', []).filter(function (d) { return d.date && d.date >= d30Str; });
     var groupStats = altGroupsActive.map(function (grp) {
       var items = grp.items.filter(function (it) {
         if (isExcluded(it)) return false;
@@ -2434,27 +2422,17 @@ var Health = {
         if (restricted(it)) return false;
         return true;
       });
-      /* 统计30天内该组每种食物吃了多少克 + 营养素 */
+      /* 统计30天内该组每种食物吃了多少次 */
       var eaten = [];
-      var totalG = 0;      /* 总克重 */
-      var totalNutri = 0;  /* 总营养素（按含量表） */
-      var nutriTable = GROUP_NUTRI[grp.id] || {};
+      var total = 0;
       items.forEach(function (it) {
-        var g = 0;
-        diet30.forEach(function (d) { if (matched(d.name, [it])) g += (+d.amount || 0); });
-        if (g > 0) {
-          var n = grp.isWeight ? g : (g / 100) * (nutriTable[it] || 0);
-          eaten.push({ name: it, gram: g, nutri: n });
-          totalG += g;
-          totalNutri += n;
-        }
+        var cnt = 0;
+        eatenList.forEach(function (f) { if (matched(f, [it])) cnt += countMap[f]; });
+        if (cnt > 0) { eaten.push({ name: it, count: cnt }); total += cnt; }
       });
-      eaten.sort(function (a, b) { return b.gram - a.gram; });
-      /* 评判：吃够了没有（按营养素/克重 vs 目标） */
-      var actual = grp.isWeight ? totalG : totalNutri;
-      var pct = grp.target > 0 ? Math.round(actual / grp.target * 100) : 0;
-      var level = pct >= 85 ? 'good' : (pct >= 40 ? 'low' : 'none');
-      return { id: grp.id, name: grp.name, items: items, eaten: eaten, totalG: totalG, actual: actual, target: grp.target, unit: grp.unit, pct: pct, level: level, targetLabel: grp.targetLabel, isWeight: grp.isWeight };
+      eaten.sort(function (a, b) { return b.count - a.count; });
+      var level = total === 0 ? 'none' : (total >= 4 ? 'good' : 'low');
+      return { id: grp.id, name: grp.name, items: items, eaten: eaten, total: total, level: level };
     });
 
     /* 吃得少的组 → 其未吃过的食物优先进入值得一试（排前面） */
@@ -2472,27 +2450,16 @@ var Health = {
       return aw - bw;
     });
 
-    /* 渲染摄入统计（按克重/营养素 vs 目标） */
+    /* 渲染摄入统计 */
     var statHtml = '';
     var statAny = groupStats.some(function (gs) { return gs.level !== 'none' || true; });
     if (statAny) {
-      statHtml += '<div class="advice-sec-title">📊 营养分类摄入 <span class="hint">（30天 · 按需摄入对比）</span></div>';
+      statHtml += '<div class="advice-sec-title">📊 营养分类摄入 <span class="hint">（30天）</span></div>';
       groupStats.forEach(function (gs) {
         var ic = gs.level === 'good' ? '✅' : (gs.level === 'low' ? '⚠️' : '🔴');
-        var label = gs.level === 'good' ? '吃够了' : (gs.level === 'low' ? '吃少了' : '没怎么吃');
-        var detail = gs.eaten.length ? gs.eaten.slice(0, 3).map(function (e) { return e.name + '×' + e.gram + 'g'; }).join('、') : '—';
-        var barCls = gs.level === 'good' ? 'ok' : (gs.level === 'low' ? 'low' : 'over');
-        statHtml += '<div class="group-stat ' + gs.level + '">' +
-          '<div class="gs-head"><span class="al-ic">' + ic + '</span><b>' + gs.name + '</b>' +
-          '<span class="gs-pct">' + gs.actual + '/' + gs.target + gs.unit + '（' + gs.pct + '%）</span>' +
-          '<span class="gs-label">' + label + '</span></div>' +
-          '<div class="dn-bar"><i class="' + barCls + '" style="width:' + Math.min(gs.pct, 100) + '%"></i></div>' +
-          '<div class="gs-detail">' + (detail !== '—' ? detail : '') + '</div>' +
-          '<div class="gs-actions">' +
-          gs.items.map(function (it) {
-            return '<button class="btn sm gs-food" data-action="group-pick" data-gid="' + gs.id + '" data-item="' + escape(it) + '">' + escape(it) + '</button>';
-          }).join('') +
-          '</div></div>';
+        var label = gs.level === 'good' ? '吃得不错' : (gs.level === 'low' ? '吃少了' : '没怎么吃');
+        var detail = gs.eaten.length ? gs.eaten.slice(0, 3).map(function (e) { return e.name + '×' + e.count; }).join('、') : '—';
+        statHtml += '<div class="advice-line ' + (gs.level === 'good' ? 'good' : 'bad') + '"><span class="al-ic">' + ic + '</span><span class="al-text"><b>' + gs.name + '</b>（' + label + '）' + (detail !== '—' ? '：' + detail : '') + '</span></div>';
       });
     }
     /* 搭配提示：优先用仓库里有货/吃过的食材找搭配 */
@@ -2705,30 +2672,6 @@ var Health = {
     Store.set('recOffset', offset);
     this.render();
     toast('已换一批推荐');
-  },
-  /* 点选某组食材 → 推荐搭配吃法 */
-  groupPick: function (gid, item) {
-    var pairs = Store.get('foodPairs', []);
-    var hit = pairs.filter(function (p) { return p.a === item || p.b === item; });
-    var grp = ALT_GROUPS.find(function (g) { return g.id === gid; });
-    var tip = grp ? '「' + grp.name + '」选了' + item : '选了' + item;
-    if (hit.length) {
-      var list = Store.get('groupPicks', []);
-      list.push({ gid: gid, item: item, date: today() });
-      Store.set('groupPicks', list);
-      /* 推荐搭配（含吃法提示） */
-      var tips = hit.slice(0, 2).map(function (p) {
-        return p.a + ' + ' + p.b + '：' + p.tip;
-      }).join('<br>');
-      openModal('💡 ' + item + ' 怎么吃吸收好',
-        '<div class="hint" style="margin-bottom:8px">已记住你想吃「' + item + '」，推荐这样搭配：</div>' +
-        '<div class="advice-line good"><span class="al-ic">🤝</span><span class="al-text">' + tips + '</span></div>' +
-        '<div class="hint" style="margin-top:8px">买回来后记得在食材库「＋买」登记，记录饮食时会自动扣库存</div>',
-        '<button class="btn" data-action="modal-cancel">知道了</button>'
-      );
-    } else {
-      toast('「' + item + '」暂无搭配库记录，可在健康档案反馈补充');
-    }
   }
 };
 
