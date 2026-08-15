@@ -2275,7 +2275,12 @@ var Health = {
       return words.some(function (w) {
         w = w.replace(/[（(].*?[)）]/g, '').trim();
         if (!w) return false;
-        return food.indexOf(w) !== -1 || w.indexOf(food) !== -1;
+        /* 正向包含：食物名包含关键词才算（"胡萝卜丝炒肉"→胡萝卜 ✓）
+           去掉反向（"萝卜"→胡萝卜 ✗ 误判） */
+        if (food.indexOf(w) === -1) return false;
+        /* 特例：麸皮不算燕麦 */
+        if (w === '燕麦' && food.indexOf('麸皮') !== -1) return false;
+        return true;
       });
     };
     /* 从"吃过的食物"中分类（不是从规则词推荐！） */
@@ -2363,12 +2368,15 @@ var Health = {
     var exNames = excludes.map(function (x) { return x.name; });
     allGood = allGood.filter(function (g) { return exNames.indexOf(g) === -1; });
 
-    /* 匹配：判断某食物名是否命中关键词列表（双向包含） */
+    /* 匹配：判断某食物名是否命中关键词列表（仅正向包含，避免"萝卜"误判"胡萝卜"） */
     var matched = function (food, words) {
       return words.some(function (w) {
         w = w.replace(/[（(].*?[)）]/g, '').trim(); /* 去掉括号注释 */
         if (!w) return false;
-        return food.indexOf(w) !== -1 || w.indexOf(food) !== -1;
+        if (food.indexOf(w) === -1) return false;
+        /* 特例：麸皮不算燕麦 */
+        if (w === '燕麦' && food.indexOf('麸皮') !== -1) return false;
+        return true;
       });
     };
     /* 拆字匹配：习惯名里能拆出来的食材都算已有（用于子词级排除） */
