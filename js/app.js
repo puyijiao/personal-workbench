@@ -2412,10 +2412,13 @@ var Health = {
         lowStock.push(lf.name + '（剩' + s + 'g）');
       }
     });
-    /* ===== 替代组问答机制 ===== */
+    /* ===== 替代组问答机制（组顺序跟随"换一批"轮转） ===== */
     var altChoices = Store.get('altChoices', []); /* [{gid, chosen, date, state}] state: chosen/bought/used/askAgain */
     var altHtml = '';
-    ALT_GROUPS.forEach(function (grp) {
+    var altOffset = (Store.get('recOffset', 0) || 0) % Math.max(ALT_GROUPS.length, 1);
+    var altGroupsOrder = ALT_GROUPS.slice(altOffset).concat(ALT_GROUPS.slice(0, altOffset));
+    var askShown = 0; /* 未选问答最多显示2个，跟随换一批轮转 */
+    altGroupsOrder.forEach(function (grp) {
       /* 该组里有哪些食物命中 allGood（对你好） */
       var groupGood = grp.items.filter(function (it) {
         if (isExcluded(it)) return false;
@@ -2429,7 +2432,8 @@ var Health = {
         var needAsk = groupGood.filter(function (it) {
           return !lib.some(function (lf) { return (lf.stock || 0) > 0 && matched(lf.name, [it]); });
         });
-        if (needAsk.length >= 2) {
+        if (needAsk.length >= 2 && askShown < 2) {
+          askShown++;
           altHtml += '<div class="advice-line alt-ask"><span class="al-ic">💬</span><span class="al-text"><b>' + grp.name + '功效相近，先买哪个？</b><br>' +
             needAsk.map(function (it) { return '<button class="btn sm alt-btn" data-action="alt-choose" data-gid="' + grp.id + '" data-item="' + escape(it) + '">' + escape(it) + '</button>'; }).join(' ') +
             '<button class="btn sm alt-btn" data-action="alt-choose" data-gid="' + grp.id + '" data-item="__any__">都可以，轮着买</button>' +
