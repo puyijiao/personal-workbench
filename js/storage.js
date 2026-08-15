@@ -83,7 +83,6 @@ const Store = {
       healthExcludes: [],
       healthHabits: [],
       altChoices: [],
-      groupPicks: [],
       recOffset: 0,
       workbenchName: '个人工作台'
     };
