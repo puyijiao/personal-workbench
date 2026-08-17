@@ -1088,12 +1088,19 @@ var Diet = {
         stockHtml + '</div>';
     };
     /* 按分类分组：先显示有食材的分类，最后是"未分类" */
+    /* 排序：每个分类内部，有库存的在前、无库存的在后；都有/都无库存时按名字 */
+    var sortByStock = function (a, b) {
+      var sa = (a.stock || 0) > 0 ? 1 : 0;
+      var sb = (b.stock || 0) > 0 ? 1 : 0;
+      if (sa !== sb) return sb - sa;
+      return (a.name || '').localeCompare(b.name || '', 'zh');
+    };
     var groups = [];
     cats.forEach(function (cat) {
-      var items = lib.filter(function (f) { return (f.category || '未分类') === cat; });
+      var items = lib.filter(function (f) { return (f.category || '未分类') === cat; }).sort(sortByStock);
       if (items.length) groups.push({ name: cat, items: items });
     });
-    var uncat = lib.filter(function (f) { return !f.category || cats.indexOf(f.category) === -1; });
+    var uncat = lib.filter(function (f) { return !f.category || cats.indexOf(f.category) === -1; }).sort(sortByStock);
     if (uncat.length) groups.push({ name: '📦 未分类', items: uncat });
     $('#foodLibList').innerHTML = groups.map(function (g) {
       return '<div class="fl-group"><div class="fl-group-head">' + escape(g.name) + ' <span class="fl-count">' + g.items.length + '</span></div>' +
