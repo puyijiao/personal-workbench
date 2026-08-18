@@ -1035,10 +1035,8 @@ var Diet = {
       if (amt <= 0) { toast('请输入食用量'); return; }
       var r = nutriForAmount(sel, amt);
       Store.set('diet', Store.get('diet', []).concat([{ id: uid(), date: date, meal: meal, name: sel.name, amount: amt, energy: r.energy, protein: r.protein, fat: r.fat, carb: r.carb, fiber: r.fiber, sodium: r.sodium }]));
-      /* 统一扣库存 */
+      /* 统一扣库存（提示合并到最后的 toast） */
       var stRes = deductStock(sel.name, amt);
-      if (stRes.ok) toast('已扣库存「' + stRes.matched + '」' + amt + 'g，剩' + stRes.left + 'g');
-      else if (stRes.reason === '未匹配到有库存的食材') toast('⚠️ 「' + sel.name + '」食材库无库存或未登记');
     } else {
       var name = $('#fd-pname', box).value.trim();
       if (!name) { toast('请填写食物名称'); return; }
@@ -1052,11 +1050,8 @@ var Diet = {
       var r2 = { energy: +(energy * factor).toFixed(0), protein: +((+$('#fd-pprotein', box).value || 0) * factor).toFixed(1), fat: +((+$('#fd-pfat', box).value || 0) * factor).toFixed(1), carb: +((+$('#fd-pcarb', box).value || 0) * factor).toFixed(1), fiber: +(fiber * factor).toFixed(1), sodium: +((+$('#fd-psodium', box).value || 0) * factor).toFixed(0) };
       var imgSrc = $('#fd-preview', box).classList.contains('show') ? $('#fd-imgel', box).src : null;
       Store.set('diet', Store.get('diet', []).concat([{ id: uid(), date: date, meal: meal, name: name, amount: amt3, energy: r2.energy, protein: r2.protein, fat: r2.fat, carb: r2.carb, fiber: r2.fiber, sodium: r2.sodium, image: imgSrc }]));
-      /* 统一扣库存 */
+      /* 统一扣库存（提示合并到最后的 toast） */
       var stRes2 = deductStock(name, amt3);
-      if (stRes2.empty) toast('「' + stRes2.matched + '」库存已用完');
-      else if (stRes2.ok) toast('已扣库存「' + stRes2.matched + '」' + amt3 + 'g');
-      else toast('⚠️ 「' + name + '」未匹配到库存，请检查食材库名称');
       if (basis === 100 && $('#fd-savelib', box) && $('#fd-savelib', box).checked) {
         var lib = Store.get('foodLib', []);
         if (!lib.some(function (f) { return f.name === name; })) {
@@ -1065,7 +1060,16 @@ var Diet = {
         } else { toast('食材库已有同名食材，未重复保存'); }
       }
     }
-    closeModal(); this.renderSummary(); this.renderMeals(); this.renderFoodLib(); this.renderHistory(); toast('已记录饮食');
+    closeModal(); this.renderSummary(); this.renderMeals(); this.renderFoodLib(); this.renderHistory();
+    /* 合并提示：扣库存信息 + 已记录（避免被"已记录饮食"覆盖） */
+    var finalMsg = '已记录饮食';
+    if (mode === 'lib' && stRes && stRes.ok) finalMsg = '✓ 已记录 · 扣库存「' + stRes.matched + '」' + amt + 'g，剩' + stRes.left + 'g';
+    if (mode === 'lib' && stRes && !stRes.ok) finalMsg = '✓ 已记录 · ⚠️「' + sel.name + '」食材库无库存或未登记';
+    if (mode !== 'lib' && typeof stRes2 !== 'undefined') {
+      if (stRes2.ok) finalMsg = '✓ 已记录 · 扣库存「' + stRes2.matched + '」' + amt3 + 'g，剩' + stRes2.left + 'g';
+      else finalMsg = '✓ 已记录 · ⚠️「' + name + '」未匹配到库存';
+    }
+    toast(finalMsg);
   },
   renderFoodLib: function () {
     var lib = Store.get('foodLib', []);
