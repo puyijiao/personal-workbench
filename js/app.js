@@ -1037,7 +1037,8 @@ var Diet = {
       Store.set('diet', Store.get('diet', []).concat([{ id: uid(), date: date, meal: meal, name: sel.name, amount: amt, energy: r.energy, protein: r.protein, fat: r.fat, carb: r.carb, fiber: r.fiber, sodium: r.sodium }]));
       /* 统一扣库存 */
       var stRes = deductStock(sel.name, amt);
-      if (stRes.empty) toast('「' + stRes.matched + '」库存已用完');
+      if (stRes.ok) toast('已扣库存「' + stRes.matched + '」' + amt + 'g，剩' + stRes.left + 'g');
+      else if (stRes.reason === '未匹配到有库存的食材') toast('⚠️ 「' + sel.name + '」食材库无库存或未登记');
     } else {
       var name = $('#fd-pname', box).value.trim();
       if (!name) { toast('请填写食物名称'); return; }
