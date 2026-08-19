@@ -43,6 +43,8 @@ document.addEventListener('click', function (e) {
       case 'health-exclude': Health.toggleExclude(id); break;
       case 'health-long-done': Health.doneShort(id); break;
       case 'add-health-habit': Health.addHabit(); break;
+      case 'add-period': Health.addPeriod(); break;
+      case 'del-period': Health.delPeriod(id); break;
       case 'del-health-habit': Health.delHabit(id); break;
       case 'rec-shuffle': Health.shuffleRec(); break;
       case 'rename-workbench': renameWorkbench(); break;
@@ -2189,7 +2191,7 @@ var FOOD_MILD = {
 };
 
 var Health = {
-  render: function () { this.renderAdvice(); this.renderLong(); this.renderHabitsList(); this.renderShort(); },
+  render: function () { this.renderAdvice(); this.renderLong(); this.renderHabitsList(); this.renderShort(); this.renderPeriods(); },
   renderLong: function () {
     var list = Store.get('healthLongTerm', []);
     var box = $('#healthLongList');
@@ -2692,6 +2694,64 @@ var Health = {
       Store.set('healthShortTerm', Store.get('healthShortTerm', []).filter(function (h) { return h.id !== id; }));
       self.render(); toast('好，已关闭该记录 🎉');
     }, { okText: '已好转' });
+  },
+  /* ===== 例假记录 ===== */
+  renderPeriods: function () {
+    var box = $('#periodList');
+    if (!box) return;
+    var list = Store.get('periods', []);
+    if (!list.length) {
+      box.innerHTML = '<div class="empty-mini">还没有例假记录，点右上角「＋ 记录」记下开始日期</div>';
+      return;
+    }
+    /* 按开始日倒序 */
+    list.sort(function (a, b) { return a.start > b.start ? -1 : 1; });
+    /* 预测下次：用最近两次间隔的平均 */
+    var html = '';
+    if (list.length >= 2) {
+      var d1 = new Date(list[0].start), d2 = new Date(list[1].start);
+      var cycle = Math.round(Math.abs((d1 - d2) / 86400000));
+      var next = new Date(d1.getTime() + cycle * 86400000);
+      var daysLeft = Math.ceil((next - new Date()) / 86400000);
+      var nextStr = next.getFullYear() + '-' + pad2(next.getMonth() + 1) + '-' + pad2(next.getDate());
+      html += '<div class="period-predict"><span class="pp-ic">🔮</span><div><b>下次预计：' + nextStr + '</b><div class="pp-sub">平均周期 ' + cycle + ' 天' + (daysLeft > 0 ? ' · 还有 ' + daysLeft + ' 天' : ' · 预计已到') + '</div></div></div>';
+    }
+    html += list.map(function (p) {
+      var dur = p.end ? Math.round((new Date(p.end) - new Date(p.start)) / 86400000) + 1 : null;
+      return '<div class="period-item"><div class="pi-date">📅 ' + escape(p.start) + (p.end ? ' ~ ' + escape(p.end) : '') + '</div>' +
+        '<div class="pi-info">' + (dur ? '持续 ' + dur + ' 天' : '结束日待补充') + '</div>' +
+        '<button class="nc-del" data-action="del-period" data-id="' + p.id + '" title="删除">✕</button></div>';
+    }).join('');
+    box.innerHTML = html;
+  },
+  addPeriod: function () {
+    var self = this;
+    var t = today();
+    openModal('记录例假',
+      '<div class="field"><label>开始日期</label><input type="date" id="pd-start" value="' + t + '" /></div>' +
+      '<div class="field"><label>结束日期（可后补，留空则只记开始）</label><input type="date" id="pd-end" /></div>' +
+      '<div class="hint">结束日期可以之后补充，补充后会自动算持续天数</div>',
+      '<button class="btn" data-action="modal-cancel">取消</button><button class="btn primary" id="pd-save">保存</button>',
+      function () {
+        $('#pd-save').onclick = function () {
+          var start = $('#pd-start').value;
+          if (!start) { toast('请选择开始日期'); return; }
+          var end = $('#pd-end').value || '';
+          if (end && end < start) { toast('结束日期不能早于开始'); return; }
+          var list = Store.get('periods', []);
+          list.push({ id: uid(), start: start, end: end });
+          Store.set('periods', list);
+          closeModal(); self.render(); toast('已记录例假 📅');
+        };
+      }
+    );
+  },
+  delPeriod: function (id) {
+    var self = this;
+    confirmDialog('删除记录', '确认删除这条例假记录？', function () {
+      Store.set('periods', Store.get('periods', []).filter(function (p) { return p.id !== id; }));
+      self.render(); toast('已删除');
+    }, { danger: true, okText: '删除' });
   },
   /* 管理排除项 */
   toggleExclude: function (longId) {
