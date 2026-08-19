@@ -568,3 +568,12 @@ table tr:hover td{background:#f8fafc}
 .gs-actions{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .gs-food{font-size:11px;padding:2px 10px;border-radius:12px;background:#f8fafc;border:1px solid var(--line);color:var(--ink)}
 .gs-food:hover{background:rgba(99,102,241,.1);border-color:var(--brand);color:var(--brand)}
+
+/* 例假记录 */
+.period-predict{background:rgba(236,72,153,.08);border:1px solid rgba(236,72,153,.25);border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;gap:10px;align-items:center}
+.pp-ic{font-size:20px}
+.period-predict b{font-size:14px;color:#be185d}
+.pp-sub{font-size:12px;color:var(--ink-soft);margin-top:2px}
+.period-item{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:6px;position:relative}
+.pi-date{font-size:13px;font-weight:600;flex:1}
+.pi-info{font-size:11px;color:var(--ink-soft)}
