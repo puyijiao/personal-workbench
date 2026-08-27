@@ -1380,10 +1380,10 @@ var Diet = {
       if (stRes.ok) stockHits.push(stRes.matched);
       else missList.push(stRes.matched ? stRes.matched : stName);
     });
-    if (stockHits.length) toast('已扣库存：' + stockHits.join('、'));
-    if (missList.length) toast('⚠️ 未匹配库存：' + missList.join('、') + '（请去食材库核对名称）');
-    this.renderSummary(); this.renderMeals();
+    this.renderSummary(); this.renderMeals(); this.renderFoodLib(); this.renderHistory();
     var msg = '✓ 保存完成';
+    if (stockHits.length) msg += ' · 扣库存：' + stockHits.join('、');
+    if (missList.length) msg += ' · ⚠️未匹配库存：' + missList.join('、');
     if (libUsed) msg += ' · ' + libUsed + '项来自食材库';
     if (dbUsed) msg += ' · ' + dbUsed + '项来自内置库';
     if (fallbackUsed) msg += ' · ' + fallbackUsed + '项使用豆包估算';
