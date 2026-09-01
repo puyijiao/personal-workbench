@@ -1342,6 +1342,7 @@ var Diet = {
     var date = $('#qp-date').value;
     var arr = Store.get('diet', []);
     var libUsed = 0, dbUsed = 0, fallbackUsed = 0;
+    var savedNames = []; /* 本次保存的记录名（用于扣库存） */
     items.forEach(function (it) {
       var matched = matchFoodInDb(it.name);
       var nutri, dbName;
@@ -1355,6 +1356,7 @@ var Diet = {
         dbName = it.name;
         fallbackUsed++;
       }
+      savedNames.push(dbName);
       arr.push({
         id: uid(),
         date: date,
@@ -1371,11 +1373,11 @@ var Diet = {
       });
     });
     Store.set('diet', arr);
-    /* 统一扣库存：用匹配后的食材库名（dbName）扣减 */
+    /* 统一扣库存：用本次保存的名字扣减（不再错取历史记录） */
     var missList = [];
     var stockHits = [];
     items.forEach(function (it, idx) {
-      var stName = arr[idx].name; /* 已保存的名字（匹配后=食材库名或豆包名） */
+      var stName = savedNames[idx] || it.name; /* 本次粘贴的食物名 */
       var stRes = deductStock(stName, it.amount);
       if (stRes.ok) stockHits.push(stRes.matched);
       else missList.push(stRes.matched ? stRes.matched : stName);
