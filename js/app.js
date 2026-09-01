@@ -470,8 +470,8 @@ function parseNutritionText(text) {
     });
     return items;
   }
-  // 1) 拆成多份：按空行 / "---" / 连续多个键值对分组
-  var chunks = text.split(/\n\s*\n|(?=^\s*食物[:：])|(?=^\s*名称[:：])|(?=^\s*食品[:：])/m);
+  // 1) 拆成多份：按空行 / "---" / "食物/名称/食品/物：" 等键值对分组
+  var chunks = text.split(/\n\s*\n|(?=^\s*食物[:：])|(?=^\s*名称[:：])|(?=^\s*食品[:：])|(?=^\s*物[:：])/m);
   chunks.forEach(function (chunk) {
     if (!chunk.trim()) return;
     var item = { name: '', amount: 0, energy: 0, protein: 0, fat: 0, carb: 0, fiber: 0, sodium: 0 };
@@ -498,8 +498,8 @@ function parseNutritionText(text) {
       // 逐行扫描键值对
       lines.forEach(function (line) {
         var m;
-        // 食物/名称/食品：xxx
-        m = line.match(/^\s*(?:食物|名称|食品)\s*[:：=]\s*(.+?)\s*$/);
+        // 食物/名称/食品/物：xxx（兼容豆包省略"食"字）
+        m = line.match(/^\s*(?:食物|名称|食品|物)\s*[:：=]\s*(.+?)\s*$/);
         if (m) item.name = m[1].replace(/^[\s*#-]+|[\s*]+$/g, '');
         // 克数/重量/份量：100g
         m = line.match(/^\s*(?:克数|重量|份量|食用量)\s*[:：=]\s*([\d.]+)/);
