@@ -1438,11 +1438,21 @@ var Body = {
     try {
       if (typeof Chart === 'undefined') return;
       var labels = data.map(function (d) { return fmtDate(d.date); });
+      var dates = data.map(function (d) { return d.date; });
       var w = data.map(function (d) { return d.weight; }), f = data.map(function (d) { return d.bodyFat; });
+      /* 例假期间判断：日期落在某个例假区间内（没填结束日 = 进行中，粉到今天） */
+      var periods = Store.get('periods', []);
+      var t = today();
+      var inPeriod = function (ds) {
+        return periods.some(function (p) {
+          var end = p.end || t;
+          return ds >= p.start && ds <= end;
+        });
+      };
       if (this.chartW) this.chartW.destroy();
       if (this.chartF) this.chartF.destroy();
       var mkChart = function (ctx, label, arr, color) {
-        return new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: label, data: arr, borderColor: color, backgroundColor: color + '22', fill: true, tension: 0.35, pointRadius: 3, pointBackgroundColor: color }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: false } } } });
+        return new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: label, data: arr, borderColor: color, backgroundColor: color + '22', fill: true, tension: 0.35, pointRadius: 3, pointBackgroundColor: function (c) { return inPeriod(dates[c.dataIndex]) ? '#ec4899' : color; }, pointRadius: function (c) { return inPeriod(dates[c.dataIndex]) ? 4.5 : 3; }, segment: { borderColor: function (c) { return inPeriod(dates[c.p0DataIndex]) ? '#ec4899' : color; } } }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel: function (c) { return inPeriod(dates[c.dataIndex]) ? '🩸 例假期间' : ''; } } } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: false } } } });
       };
       this.chartW = mkChart($('#weightChart'), '体重', w, '#06b6d4');
       this.chartF = mkChart($('#fatChart'), '体脂率', f, '#8b5cf6');
@@ -2743,7 +2753,10 @@ var Health = {
           var list = Store.get('periods', []);
           list.push({ id: uid(), start: start, end: end });
           Store.set('periods', list);
-          closeModal(); self.render(); toast('已记录例假 📅');
+          closeModal(); self.render();
+          /* 体重体脂趋势图同步刷新（例假期间折线变粉） */
+          if (typeof Body !== 'undefined' && $('#weightChart')) Body.render();
+          toast('已记录例假 📅 趋势图已标粉');
         };
       }
     );
