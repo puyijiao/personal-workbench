@@ -44,6 +44,7 @@ document.addEventListener('click', function (e) {
       case 'health-long-done': Health.doneShort(id); break;
       case 'add-health-habit': Health.addHabit(); break;
       case 'add-period': Health.addPeriod(); break;
+      case 'edit-period': Health.addPeriod(id); break;
       case 'del-period': Health.delPeriod(id); break;
       case 'del-health-habit': Health.delHabit(id); break;
       case 'rec-shuffle': Health.shuffleRec(); break;
@@ -2732,17 +2733,19 @@ var Health = {
       var dur = p.end ? Math.round((new Date(p.end) - new Date(p.start)) / 86400000) + 1 : null;
       return '<div class="period-item"><div class="pi-date">📅 ' + escape(p.start) + (p.end ? ' ~ ' + escape(p.end) : '') + '</div>' +
         '<div class="pi-info">' + (dur ? '持续 ' + dur + ' 天' : '结束日待补充') + '</div>' +
+        '<button class="nc-edit" data-action="edit-period" data-id="' + p.id + '" title="修改日期">✎</button>' +
         '<button class="nc-del" data-action="del-period" data-id="' + p.id + '" title="删除">✕</button></div>';
     }).join('');
     box.innerHTML = html;
   },
-  addPeriod: function () {
+  addPeriod: function (editId) {
     var self = this;
     var t = today();
-    openModal('记录例假',
-      '<div class="field"><label>开始日期</label><input type="date" id="pd-start" value="' + t + '" /></div>' +
-      '<div class="field"><label>结束日期（可后补，留空则只记开始）</label><input type="date" id="pd-end" /></div>' +
-      '<div class="hint">结束日期可以之后补充，补充后会自动算持续天数</div>',
+    var editing = editId ? Store.get('periods', []).find(function (p) { return p.id === editId; }) : null;
+    openModal(editing ? '修改例假日期' : '记录例假',
+      '<div class="field"><label>开始日期</label><input type="date" id="pd-start" value="' + (editing ? editing.start : t) + '" /></div>' +
+      '<div class="field"><label>结束日期（可后补，留空则只记开始）</label><input type="date" id="pd-end" value="' + (editing && editing.end ? editing.end : '') + '" /></div>' +
+      '<div class="hint">' + (editing ? '改完点保存，趋势图的粉色区间会同步更新' : '结束日期可以之后补充，补充后会自动算持续天数') + '</div>',
       '<button class="btn" data-action="modal-cancel">取消</button><button class="btn primary" id="pd-save">保存</button>',
       function () {
         $('#pd-save').onclick = function () {
@@ -2751,12 +2754,17 @@ var Health = {
           var end = $('#pd-end').value || '';
           if (end && end < start) { toast('结束日期不能早于开始'); return; }
           var list = Store.get('periods', []);
-          list.push({ id: uid(), start: start, end: end });
+          if (editing) {
+            var p = list.find(function (x) { return x.id === editId; });
+            if (p) { p.start = start; p.end = end; }
+          } else {
+            list.push({ id: uid(), start: start, end: end });
+          }
           Store.set('periods', list);
           closeModal(); self.render();
           /* 体重体脂趋势图同步刷新（例假期间折线变粉） */
           if (typeof Body !== 'undefined' && $('#weightChart')) Body.render();
-          toast('已记录例假 📅 趋势图已标粉');
+          toast(editing ? '已更新例假日期 📅 趋势图已同步' : '已记录例假 📅 趋势图已标粉');
         };
       }
     );
@@ -2765,7 +2773,10 @@ var Health = {
     var self = this;
     confirmDialog('删除记录', '确认删除这条例假记录？', function () {
       Store.set('periods', Store.get('periods', []).filter(function (p) { return p.id !== id; }));
-      self.render(); toast('已删除');
+      self.render();
+      /* 体重体脂趋势图同步刷新 */
+      if (typeof Body !== 'undefined' && $('#weightChart')) Body.render();
+      toast('已删除');
     }, { danger: true, okText: '删除' });
   },
   /* 管理排除项 */
