@@ -2742,12 +2742,34 @@ var Health = {
     var self = this;
     var t = today();
     var editing = editId ? Store.get('periods', []).find(function (p) { return p.id === editId; }) : null;
+    /* 新增时列出已有记录（防止旧记录残留导致图表异常） */
+    var existingHtml = '';
+    if (!editing) {
+      var plist = Store.get('periods', []).slice().sort(function (a, b) { return a.start > b.start ? -1 : 1; });
+      if (plist.length) {
+        existingHtml = '<div class="field"><label>已有例假记录</label>' + plist.map(function (p) {
+          return '<div class="period-item"><div class="pi-date">📅 ' + escape(p.start) + (p.end ? ' ~ ' + escape(p.end) : '') + '</div><div class="pi-info">' + (p.end ? '' : '进行中') + '</div><button class="nc-del pd-del" data-pid="' + p.id + '" title="删除这条">✕</button></div>';
+        }).join('') + '</div>';
+      }
+    }
     openModal(editing ? '修改例假日期' : '记录例假',
+      existingHtml +
       '<div class="field"><label>开始日期</label><input type="date" id="pd-start" value="' + (editing ? editing.start : t) + '" /></div>' +
       '<div class="field"><label>结束日期（可后补，留空则只记开始）</label><input type="date" id="pd-end" value="' + (editing && editing.end ? editing.end : '') + '" /></div>' +
-      '<div class="hint">' + (editing ? '改完点保存，趋势图的粉色区间会同步更新' : '结束日期可以之后补充，补充后会自动算持续天数') + '</div>',
+      '<div class="hint">' + (editing ? '改完点保存，趋势图的粉色区间会同步更新' : '提示：例假结束了记得补填结束日，否则粉色会一直延续') + '</div>',
       '<button class="btn" data-action="modal-cancel">取消</button><button class="btn primary" id="pd-save">保存</button>',
       function () {
+        /* 已有记录的删除按钮 */
+        document.querySelectorAll('.pd-del').forEach(function (b) {
+          b.onclick = function () {
+            var pid = b.getAttribute('data-pid');
+            Store.set('periods', Store.get('periods', []).filter(function (p) { return p.id !== pid; }));
+            b.closest('.period-item').remove();
+            if (typeof Body !== 'undefined' && $('#weightChart')) Body.render();
+            self.render();
+            toast('已删除旧记录');
+          };
+        });
         $('#pd-save').onclick = function () {
           var start = $('#pd-start').value;
           if (!start) { toast('请选择开始日期'); return; }
