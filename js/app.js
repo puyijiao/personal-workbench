@@ -64,11 +64,10 @@ document.addEventListener('click', function (e) {
       /* 饮食 */
       case 'add-food': Diet.addFood(btn.dataset.meal); break;
       case 'copy-doubao-prompt':
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(DOUBAO_PROMPT).then(function () { toast('✓ 已复制指令，去豆包粘贴即可'); });
-        } else {
-          var ta = document.createElement('textarea'); ta.value = DOUBAO_PROMPT; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('✓ 已复制指令');
-        }
+        copyText(DOUBAO_PROMPT, '✓ 已复制每日指令，去豆包粘贴');
+        break;
+      case 'copy-doubao-bot':
+        copyText(DOUBAO_BOT_PROMPT, '✓ 已复制智能体人设，粘贴到豆包智能体「设定」里，永久生效');
         break;
       case 'add-food-lib': Diet.editFoodLibItem(); break;
       case 'edit-food-lib': Diet.editFoodLibItem(id); break;
@@ -437,10 +436,30 @@ var Work = {
 };
 
 /* ---------- 健康饮食 ---------- */
+/* 复制文本到剪贴板（兼容 http 环境） */
+function copyText(text, okMsg) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () { toast(okMsg); },
+      function () { fallbackCopyText(text, okMsg); });
+  } else {
+    fallbackCopyText(text, okMsg);
+  }
+}
+function fallbackCopyText(text, okMsg) {
+  var ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); toast(okMsg); } catch (e) { toast('复制失败，请手动选择文本'); }
+  document.body.removeChild(ta);
+}
+
 var MEALS = [['breakfast', '早餐', '🌅'], ['lunch', '午餐', '☀️'], ['dinner', '晚餐', '🌙'], ['snack', '加餐', '🍪']];
 
 /* ---------- 豆包粘贴：标准化指令 + 智能解析 ---------- */
 var DOUBAO_PROMPT = '你是营养计算助手。我告诉你我吃了什么，你帮我估算营养成分。\n\n请严格按以下格式输出（每行一个字段，不要用 Markdown 表格，纯文本即可）：\n\n食物：[名称]\n克数：[克数,单位g]\n热量：[数值,kcal]\n蛋白质：[数值,g]\n脂肪：[数值,g]\n碳水：[数值,g]\n钠：[数值,mg]\n膳食纤维：[数值,g]\n\n如果我一次吃多份食物，按总克数和总营养输出。\n如果某项未知，填 0。';
+
+/* 豆包「智能体人设」版：设一次永久生效，不用每天重复指令 */
+var DOUBAO_BOT_PROMPT = '【角色】你是我的私人饮食营养记录助手，服务于我的「个人工作台」App，负责把我每天吃的食物换算成标准营养数据。\n\n【永久规则 - 必须永远遵守，不要任何额外解释或寒暄】\n每次我告诉你吃了什么（无论几样食物），你都必须严格按下面的纯文本格式输出，一行一个字段，不要用 Markdown 表格、不要加粗、不要序号、不要多余说明：\n\n食物：[名称]\n克数：[数值g]\n热量：[数值kcal]\n蛋白质：[数值g]\n脂肪：[数值g]\n碳水：[数值g]\n钠：[数值mg]\n膳食纤维：[数值g]\n\n【多样食物时】每种食物之间空一行分隔，例如：\n\n食物：鸡蛋\n克数：50g\n热量：78kcal\n蛋白质：6g\n脂肪：5g\n碳水：1g\n钠：70mg\n膳食纤维：0g\n\n食物：燕麦\n克数：30g\n热量：110kcal\n蛋白质：4g\n脂肪：2g\n碳水：18g\n钠：3mg\n膳食纤维：3g\n\n【其他规则】\n1. 数值未知时填 0，不要省略字段\n2. 只输出上述格式的内容，不要问问题、不要给建议\n3. 无论我问什么，只要涉及食物营养，都用这个格式回答\n4. 这条规则长期有效，不需要我每次提醒';
 
 /**
  * 智能解析豆包/AI 返回的营养文本
